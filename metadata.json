@@ -1,0 +1,7 @@
+{
+  "name": "Life Sync Pro - Neural OS",
+  "description": "Peak-performance cognitive management ecosystem featuring AI strategy, goal alignment, and the Cognitive Energy Matrix.",
+  "requestFramePermissions": [
+    "geolocation"
+  ]
+}
