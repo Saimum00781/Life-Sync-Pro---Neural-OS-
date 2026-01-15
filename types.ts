@@ -2,36 +2,41 @@
 export interface Goal {
   id: string;
   text: string;
-  intent?: string;
+  description?: string;
   priority: 'critical' | 'standard';
   done: boolean;
+  date: string;
 }
 
 export interface StudyLog {
   id: string;
   category: string;
   topic: string;
-  time: string;
+  time: string; // Total minutes
 }
 
 export interface DayData {
   goals: Goal[];
-  weekly: Goal[];
-  steps: number;
-  calories: number;
   deviceTime: string;
   studyLogs: StudyLog[];
 }
 
 export enum AppState {
   WELCOME = 'welcome',
-  ONBOARDING = 'onboarding',
   DASHBOARD = 'dashboard'
 }
 
 export enum Tab {
-  CALENDAR = 'calendar',
-  PLANNING = 'planning',
-  DIGITAL = 'digital',
-  ANALYTICS = 'analytics'
+  INBOX = 'inbox',
+  TODAY = 'today',
+  UPCOMING = 'upcoming',
+  BROWSE = 'browse'
+}
+
+export interface UserProfile {
+  name: string;
+  email: string;
+  level: number;
+  karma: number;
+  streak: number;
 }

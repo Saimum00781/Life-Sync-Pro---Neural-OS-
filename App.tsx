@@ -1,430 +1,594 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
-  Bot, X, Wand2, Calendar as CalendarIcon, Plus, Trash2, CheckCircle2, Zap,
-  Smartphone, GraduationCap, BookOpen, Briefcase, UserPlus, Moon, Trophy, Heart,
-  Sparkles, Target, BrainCircuit, BatteryCharging, Timer, Coffee, ZapOff, Lightbulb,
-  ArrowRight, Activity, TrendingUp, Star, ShieldAlert, Cpu, Check, Download
+  Plus, Trash2, Zap, Smartphone, GraduationCap, BookOpen, Briefcase, 
+  UserPlus, Moon, Trophy, Heart, Sparkles, Target, BrainCircuit, 
+  Lightbulb, Activity, Cpu, Check, Settings2, Clock, Inbox, 
+  CalendarDays, LayoutGrid, ChevronRight, User, Palette, Bell, 
+  Layers, HelpCircle, Share2, Info, Search, MoreVertical,
+  CheckCircle2, Menu, X, Wand2, Bot, LogOut, TrendingUp, Award,
+  ChevronLeft, Trash
 } from 'lucide-react';
-import { AppState, Tab, DayData, Goal, StudyLog } from './types';
-import { Navigation } from './components/Navigation';
+import { AppState, Tab, DayData, Goal, StudyLog, UserProfile } from './types';
 import { askAIArchitectStream } from './geminiService';
 
-interface Category {
-  name: string;
-  icon: React.ReactNode;
-  color: string;
-}
-
-const CATEGORIES: Category[] = [
-  { name: 'Academic', icon: <GraduationCap />, color: 'from-blue-500 to-cyan-500' },
-  { name: 'Tuition', icon: <BookOpen />, color: 'from-emerald-500 to-teal-500' },
-  { name: 'Career', icon: <Briefcase />, color: 'from-amber-500 to-orange-500' },
-  { name: 'Self Growth', icon: <UserPlus />, color: 'from-purple-500 to-pink-500' },
-  { name: 'Islamic', icon: <Moon />, color: 'from-indigo-500 to-blue-500' },
-  { name: 'Self Thinking', icon: <Lightbulb />, color: 'from-rose-500 to-orange-500' }
+const DEFAULT_CATEGORIES = [
+  { id: '1', name: 'Academic', icon: 'GraduationCap', color: 'from-blue-500 to-cyan-500' },
+  { id: '2', name: 'Tuition', icon: 'BookOpen', color: 'from-emerald-500 to-teal-500' },
+  { id: '3', name: 'Career', icon: 'Briefcase', color: 'from-amber-500 to-orange-500' },
+  { id: '4', name: 'Self Growth', icon: 'UserPlus', color: 'from-purple-500 to-pink-500' },
+  { id: '5', name: 'Islamic', icon: 'Moon', color: 'from-indigo-500 to-blue-500' },
+  { id: '6', name: 'Self Thinking', icon: 'Lightbulb', color: 'from-rose-500 to-orange-500' }
 ];
 
-const calculateProgress = (items: Goal[]) => {
-  if (items.length === 0) return 0;
-  const completed = items.filter(item => item.done).length;
-  return Math.round((completed / items.length) * 100);
+const ICON_MAP: Record<string, any> = {
+  GraduationCap: <GraduationCap />,
+  BookOpen: <BookOpen />,
+  Briefcase: <Briefcase />,
+  UserPlus: <UserPlus />,
+  Moon: <Moon />,
+  Lightbulb: <Lightbulb />,
+  Target: <Target />,
+  Activity: <Activity />,
+  Cpu: <Cpu />,
+  Heart: <Heart />,
+  Zap: <Zap />
+};
+
+const COLOR_OPTIONS = [
+  'from-blue-500 to-cyan-500',
+  'from-emerald-500 to-teal-500',
+  'from-amber-500 to-orange-500',
+  'from-purple-500 to-pink-500',
+  'from-indigo-500 to-blue-500',
+  'from-rose-500 to-orange-500',
+  'from-slate-500 to-slate-800'
+];
+
+const formatMins = (totalMins: number) => {
+  const h = Math.floor(totalMins / 60);
+  const m = totalMins % 60;
+  return h > 0 ? `${h}h ${m}m` : `${m}m`;
 };
 
 const App: React.FC = () => {
   const [appState, setAppState] = useState<AppState>(AppState.WELCOME);
-  const [activeTab, setActiveTab] = useState<Tab>(Tab.CALENDAR);
+  const [activeTab, setActiveTab] = useState<Tab>(Tab.TODAY);
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
-  const [showAI, setShowAI] = useState(false);
   const [localData, setLocalData] = useState<Record<string, DayData>>({});
-  const [proactiveAdvice, setProactiveAdvice] = useState<string>("Initializing Neural Core...");
-  const [syncLevel, setSyncLevel] = useState(0);
+  const [categories, setCategories] = useState(DEFAULT_CATEGORIES);
+  const [showQuickAdd, setShowQuickAdd] = useState(false);
+  const [showSidebar, setShowSidebar] = useState(false);
+  const [showAI, setShowAI] = useState(false);
+  
+  const [userName, setUserName] = useState<string>("");
+  const [isNewUser, setIsNewUser] = useState(true);
+
+  // Performance Goals
+  const [dailyGoalTarget, setDailyGoalTarget] = useState(5);
+  const [weeklyGoalTarget, setWeeklyGoalTarget] = useState(30);
+  const [karma, setKarma] = useState(100);
 
   useEffect(() => {
-    const saved = localStorage.getItem('life-sync-pro-v4');
-    if (saved) {
-      setLocalData(JSON.parse(saved));
+    const saved = localStorage.getItem('lsp_v7_data');
+    const savedName = localStorage.getItem('lsp_user_name');
+    const savedKarma = localStorage.getItem('lsp_karma');
+    const savedCats = localStorage.getItem('lsp_categories');
+    
+    if (saved) setLocalData(JSON.parse(saved));
+    if (savedCats) setCategories(JSON.parse(savedCats));
+    if (savedName) {
+      setUserName(savedName);
+      setIsNewUser(false);
       setAppState(AppState.DASHBOARD);
     }
+    if (savedKarma) setKarma(parseInt(savedKarma));
   }, []);
 
-  const updateDayData = (date: string, updates: Partial<DayData>) => {
-    const current = localData[date] || { goals: [], weekly: [], steps: 0, calories: 0, deviceTime: '', studyLogs: [] };
-    const newData = {
-      ...localData,
-      [date]: { ...current, ...updates }
-    };
-    setLocalData(newData);
-    localStorage.setItem('life-sync-pro-v4', JSON.stringify(newData));
+  const save = (data: any) => {
+    localStorage.setItem('lsp_v7_data', JSON.stringify(data));
+    setLocalData(data);
+  };
+
+  const saveCategories = (cats: any) => {
+    localStorage.setItem('lsp_categories', JSON.stringify(cats));
+    setCategories(cats);
+  };
+
+  const saveKarma = (newKarma: number) => {
+    const clampedKarma = Math.max(0, newKarma);
+    localStorage.setItem('lsp_karma', clampedKarma.toString());
+    setKarma(clampedKarma);
+  };
+
+  const handleOnboarding = (name: string) => {
+    if (!name.trim()) return;
+    localStorage.setItem('lsp_user_name', name.trim());
+    setUserName(name.trim());
+    setIsNewUser(false);
+    setAppState(AppState.DASHBOARD);
   };
 
   const currentDay = useMemo(() => localData[selectedDate] || { 
-    goals: [], weekly: [], steps: 0, calories: 0, deviceTime: '', studyLogs: [] 
+    goals: [], deviceTime: '0', studyLogs: [] 
   }, [localData, selectedDate]);
 
-  useEffect(() => {
-    const missionPoints = currentDay.goals.filter(g => g.done).length * 20;
-    const weeklyPoints = currentDay.weekly.filter(g => g.done).length * 50;
-    setSyncLevel(Math.min(100, missionPoints + weeklyPoints));
-  }, [currentDay]);
+  const addTask = (text: string, date: string) => {
+    const day = localData[date] || { goals: [], deviceTime: '0', studyLogs: [] };
+    const newGoals = [...day.goals, { id: Date.now().toString(), text, priority: 'standard', done: false, date }];
+    save({ ...localData, [date]: { ...day, goals: newGoals } });
+  };
 
-  useEffect(() => {
-    if (appState === AppState.DASHBOARD) {
-      const triggerShadowAnalysis = async () => {
-        const stream = askAIArchitectStream("Brief elite coaching based on my goals.", currentDay);
-        let full = "";
-        for await (const chunk of stream) { full += chunk; }
-        setProactiveAdvice(full || "Neural link stable.");
-      };
-      const timer = setTimeout(triggerShadowAnalysis, 1500);
-      return () => clearTimeout(timer);
-    }
-  }, [appState, selectedDate, currentDay.studyLogs.length]);
+  const updateDayData = (date: string, updates: Partial<DayData>) => {
+    const day = localData[date] || { goals: [], deviceTime: '0', studyLogs: [] };
+    save({ ...localData, [date]: { ...day, ...updates } });
+  };
 
-  const exportData = () => {
-    const blob = new Blob([JSON.stringify(localData)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `neural-os-backup.json`;
-    a.click();
+  const addCategory = (name: string, icon: string, color: string) => {
+    const newCats = [...categories, { id: Date.now().toString(), name, icon, color }];
+    saveCategories(newCats);
+  };
+
+  const deleteCategory = (id: string) => {
+    const newCats = categories.filter(c => c.id !== id);
+    saveCategories(newCats);
   };
 
   if (appState === AppState.WELCOME) {
     return (
-      <div className="h-screen bg-[#020617] flex flex-col items-center justify-center p-6 text-center overflow-hidden">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,_#1e1b4b_0%,_#020617_100%)] opacity-70" />
-        <div className="relative z-10 space-y-8 md:space-y-12 max-w-lg w-full">
-          <div className="w-32 h-32 md:w-44 md:h-44 bg-gradient-to-br from-indigo-600 to-purple-900 rounded-[40px] md:rounded-[56px] flex items-center justify-center shadow-2xl mx-auto border border-white/10">
-            <BrainCircuit className="w-16 h-16 md:w-24 md:h-24 text-white" />
-          </div>
-          <div className="space-y-2 md:space-y-4">
-            <h1 className="text-6xl md:text-8xl font-black tracking-tighter text-white">SYNC <span className="text-indigo-500">PRO</span></h1>
-            <p className="text-slate-400 font-medium text-lg md:text-xl leading-relaxed">
-              The proactive operating system for high-performing humans.
-            </p>
-          </div>
-          <button 
-            onClick={() => setAppState(AppState.ONBOARDING)}
-            className="w-full md:w-auto flex items-center justify-center gap-4 bg-white text-slate-950 px-10 py-6 md:px-16 md:py-8 rounded-[32px] font-black uppercase tracking-widest text-xs hover:scale-105 transition-all shadow-2xl active:scale-95"
-          >
-            Launch Protocol <ArrowRight className="w-5 h-5" />
-          </button>
+      <div className="h-screen bg-[#000000] flex flex-col items-center justify-center p-8 text-center">
+        <div className="w-20 h-20 bg-indigo-600 rounded-[28px] flex items-center justify-center shadow-2xl mb-8 animate-pulse">
+          <BrainCircuit className="w-10 h-10 text-white" />
         </div>
+        {isNewUser ? (
+          <div className="w-full max-w-xs space-y-6 animate-in">
+            <h1 className="text-2xl font-black text-white tracking-tight">Establish Link</h1>
+            <p className="text-slate-500 text-[10px] uppercase tracking-widest leading-relaxed px-4">Identity recognition required for neural synchronization</p>
+            <input 
+              autoFocus
+              className="w-full bg-[#0a0a0a] border border-white/10 p-4 rounded-2xl text-center text-white font-bold outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all text-sm"
+              placeholder="NAME"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && e.currentTarget.value) handleOnboarding(e.currentTarget.value);
+              }}
+            />
+            <button 
+              onClick={(e) => {
+                const input = (e.currentTarget.previousSibling as HTMLInputElement).value;
+                if (input) handleOnboarding(input);
+              }}
+              className="text-[10px] text-indigo-400 font-black uppercase tracking-[0.3em] mt-4 hover:text-white transition-colors"
+            >
+              Sync Identity
+            </button>
+          </div>
+        ) : (
+          <>
+            <h1 className="text-3xl font-black text-white mb-2">LIFE SYNC PRO</h1>
+            <p className="text-slate-500 mb-12 uppercase tracking-widest text-[10px]">Neural Management System v7.0</p>
+            <button 
+              onClick={() => setAppState(AppState.DASHBOARD)}
+              className="bg-white text-black w-full max-w-xs py-4 rounded-2xl font-black uppercase text-xs tracking-widest transition-transform active:scale-95 shadow-xl"
+            >
+              Initialize Sync
+            </button>
+          </>
+        )}
       </div>
     );
   }
 
-  if (appState === AppState.ONBOARDING) {
-    return <Onboarding onComplete={() => setAppState(AppState.DASHBOARD)} />;
-  }
-
   return (
-    <div className="flex flex-col h-screen bg-[#020617] text-slate-100 overflow-hidden font-['Inter']">
-      <div className="h-1 w-full bg-slate-900/50 relative z-[70]">
-        <div className="h-full bg-indigo-500 transition-all duration-1000" style={{ width: `${syncLevel}%` }} />
-      </div>
-
-      <header className="px-4 py-4 md:px-6 md:py-6 bg-slate-950/80 border-b border-white/5 flex justify-between items-center backdrop-blur-3xl sticky top-0 z-[60]">
-        <div className="flex items-center gap-3 md:gap-6">
-          <div className="w-10 h-10 md:w-12 md:h-12 bg-slate-900 rounded-xl md:rounded-2xl flex items-center justify-center border border-white/10">
-            <Cpu className="w-5 h-5 md:w-6 h-6 text-indigo-400" />
-          </div>
-          <div className="flex flex-col">
-            <span className="text-[8px] md:text-[10px] font-black uppercase tracking-widest text-slate-500">Neural Status</span>
-            <span className="text-xs md:text-sm font-black text-white">{syncLevel}% SYNCED</span>
-          </div>
-        </div>
-        <div className="flex items-center gap-2 md:gap-4">
-          <button onClick={exportData} className="p-2 text-slate-500"><Download className="w-5 h-5"/></button>
-          <button onClick={() => setShowAI(true)} className="bg-indigo-600 p-3 md:px-6 md:py-3 rounded-xl md:rounded-2xl shadow-xl">
-            <Bot className="w-5 h-5 text-white" />
-          </button>
-        </div>
-      </header>
+    <div className="flex flex-col h-screen bg-[#000000] text-slate-100 overflow-hidden font-['Inter']">
+      <Header 
+        activeTab={activeTab} 
+        onMenu={() => setShowSidebar(true)} 
+        onAI={() => setShowAI(true)}
+      />
 
       <main className="flex-1 overflow-y-auto custom-scroll pb-32">
-        <div className="max-w-7xl mx-auto p-4 md:p-12 space-y-6 md:space-y-12">
-          
-          <div className="bg-slate-900/60 border border-white/10 rounded-3xl md:rounded-[48px] p-6 md:p-12 flex flex-col md:flex-row items-center gap-6 md:gap-10 backdrop-blur-2xl">
-            <div className="p-4 md:p-6 bg-indigo-500/10 rounded-2xl border border-indigo-500/20">
-              <Sparkles className="text-indigo-400 w-8 h-8 md:w-10 md:h-10" />
-            </div>
-            <div className="text-center md:text-left">
-              <h2 className="text-[9px] md:text-[11px] font-black uppercase tracking-widest text-indigo-500 mb-2">Neural Shadow</h2>
-              <p className="text-lg md:text-2xl font-bold text-slate-100 italic">"{proactiveAdvice}"</p>
-            </div>
-          </div>
-
-          {activeTab === Tab.CALENDAR && (
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 md:gap-12">
-              <div className="lg:col-span-4 space-y-6 md:space-y-10">
-                <div className="bg-slate-900/40 p-6 md:p-10 rounded-3xl md:rounded-[48px] border border-white/5">
-                   <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-4 flex items-center gap-2">
-                     <CalendarIcon className="w-4 h-4 text-indigo-400" /> Timeline
-                   </h3>
-                   <input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} className="w-full bg-slate-950 border border-white/10 rounded-2xl p-4 md:p-6 text-center font-black text-lg md:text-xl text-white outline-none" />
-                </div>
-                
-                <div className="bg-slate-900/40 p-6 md:p-10 rounded-3xl md:rounded-[48px] border border-white/5 space-y-4 md:space-y-8">
-                  <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-2">
-                    <Activity className="w-4 h-4 text-indigo-400" /> Diagnostics
-                  </h3>
-                  <div className="space-y-4">
-                    <DiagnosticItem label="Missions" value={currentDay.goals.length} sub="ACTIVE" color="text-indigo-400" />
-                    <DiagnosticItem label="Assets" value={currentDay.studyLogs.length} sub="LOGS" color="text-purple-400" />
-                  </div>
-                </div>
-              </div>
-
-              <div className="lg:col-span-8 space-y-6 md:space-y-12">
-                <div className="bg-slate-900/20 border border-white/5 rounded-3xl md:rounded-[56px] p-6 md:p-12 space-y-10 md:space-y-16 backdrop-blur-xl">
-                  <MissionControl title="Daily Missions" items={currentDay.goals} onUpdate={it => updateDayData(selectedDate, { goals: it })} accent="indigo" icon={<Zap className="w-6 h-6" />} progress={calculateProgress(currentDay.goals)} />
-                  <div className="h-px bg-white/5" />
-                  <MissionControl title="Strategic Goals" items={currentDay.weekly} onUpdate={it => updateDayData(selectedDate, { weekly: it })} accent="purple" icon={<Trophy className="w-6 h-6" />} progress={calculateProgress(currentDay.weekly)} />
-                </div>
-              </div>
-            </div>
-          )}
-
-          {activeTab === Tab.PLANNING && (
-             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-12">
-                <StrategicHierarchy title="Intentions" icon={<Target className="text-indigo-400" />} color="indigo" placeholder="Success vision..." />
-                <StrategicHierarchy title="Values" icon={<Heart className="text-rose-400" />} color="rose" placeholder="Non-negotiables..." />
-             </div>
-          )}
-
-          {activeTab === Tab.DIGITAL && (
-            <div className="space-y-6 md:space-y-12">
-               <div className="flex flex-col xl:flex-row gap-6 md:gap-10">
-                 <div className="flex-1 bg-slate-900/30 p-6 md:p-12 rounded-3xl md:rounded-[56px] border border-white/5 flex flex-col md:flex-row justify-between items-center md:items-end gap-6 md:gap-8 backdrop-blur-xl">
-                   <div className="text-center md:text-left">
-                     <h2 className="text-3xl md:text-5xl font-black text-white uppercase">Digital Hub</h2>
-                     <p className="text-slate-500 font-bold uppercase tracking-widest text-[9px] mt-2">Resource Allocation</p>
-                   </div>
-                   <div className="bg-cyan-500/5 border border-cyan-500/10 p-6 md:p-10 rounded-3xl flex items-center gap-6 md:gap-10">
-                      <Smartphone className="w-8 h-8 text-cyan-400 opacity-50" />
-                      <div className="flex flex-col">
-                        <span className="text-[8px] font-black text-cyan-500 uppercase">Screen Time</span>
-                        <input value={currentDay.deviceTime} onChange={e => updateDayData(selectedDate, { deviceTime: e.target.value })} placeholder="0h" className="bg-transparent border-none text-cyan-400 font-black text-3xl md:text-4xl outline-none w-24 placeholder:text-cyan-950" />
-                      </div>
-                   </div>
-                 </div>
-
-                 <div className="xl:w-[400px] bg-slate-900/30 border border-white/5 p-6 md:p-12 rounded-3xl md:rounded-[56px] space-y-6">
-                    <h3 className="text-[10px] font-black uppercase text-indigo-400 flex items-center gap-2">
-                      <BrainCircuit className="w-5 h-5" /> Neural Load
-                    </h3>
-                    <div className="h-2 w-full bg-slate-950 rounded-full overflow-hidden border border-white/5">
-                      <div className="h-full bg-indigo-500 transition-all" style={{ width: `${Math.min(100, (currentDay.studyLogs.length * 15))}%` }} />
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
-                       <div className="p-4 bg-slate-950 rounded-2xl border border-white/5 text-center"><Timer className="w-5 h-5 text-indigo-400 mx-auto mb-1"/><span className="text-[8px] font-black uppercase text-slate-500">Deep Work</span></div>
-                       <div className="p-4 bg-slate-950 rounded-2xl border border-white/5 text-center"><Coffee className="w-5 h-5 text-emerald-400 mx-auto mb-1"/><span className="text-[8px] font-black uppercase text-slate-500">Rest</span></div>
-                    </div>
-                 </div>
-               </div>
-
-               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-10">
-                {CATEGORIES.map(cat => (
-                  <CategoryCard key={cat.name} cat={cat} logs={currentDay.studyLogs.filter(l => l.category === cat.name)} onAdd={(t, tm, type) => updateDayData(selectedDate, { studyLogs: [...currentDay.studyLogs, { id: Date.now().toString(), category: cat.name, topic: t, time: `${tm} [${type.toUpperCase()}]` }] })} onDelete={id => updateDayData(selectedDate, { studyLogs: currentDay.studyLogs.filter(l => l.id !== id) })} />
-                ))}
-              </div>
-            </div>
-          )}
-
-          {activeTab === Tab.ANALYTICS && (
-            <div className="bg-slate-900/40 border border-white/5 rounded-3xl md:rounded-[56px] p-6 md:p-16 space-y-10 md:space-y-16">
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-                <div>
-                  <h2 className="text-3xl md:text-4xl font-black text-white uppercase tracking-tight">Analytics</h2>
-                  <p className="text-[10px] text-slate-500 font-black uppercase mt-1">Performance Intelligence</p>
-                </div>
-                <div className="p-4 md:p-6 bg-emerald-500/10 rounded-2xl border border-emerald-500/20 w-fit"><TrendingUp className="text-emerald-500 w-8 h-8" /></div>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-10">
-                <StatCard label="Nodes" value={CATEGORIES.length} unit="Types" color="text-indigo-400" />
-                <StatCard label="Sync" value={`${calculateProgress(currentDay.goals)}%`} unit="Efficacy" color="text-indigo-400" />
-                <StatCard label="Assets" value={currentDay.studyLogs.length} unit="Logs" color="text-purple-400" />
-              </div>
-              <div className="space-y-4">
-                {currentDay.studyLogs.map(l => (
-                  <div key={l.id} className="bg-slate-950/50 p-6 rounded-[32px] border border-white/5 flex justify-between items-center group">
-                    <div className="flex items-center gap-4">
-                      <div className={`w-3 h-3 rounded-full ${l.time.includes('[GAIN]') ? 'bg-emerald-500' : 'bg-rose-500'}`} />
-                      <div>
-                        <p className="font-black text-base text-white">{l.topic}</p>
-                        <p className="text-[8px] uppercase text-slate-600 font-black">{l.category}</p>
-                      </div>
-                    </div>
-                    <span className="text-[10px] font-black px-4 py-2 bg-slate-900 rounded-xl">{l.time}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
+        {activeTab === Tab.TODAY && (
+          <TodayView 
+            data={currentDay.goals} 
+            onToggle={(id) => {
+              const goal = currentDay.goals.find(g => g.id === id);
+              const newGoals = currentDay.goals.map(g => g.id === id ? { ...g, done: !g.done } : g);
+              updateDayData(selectedDate, { goals: newGoals });
+              saveKarma(goal?.done ? karma - 5 : karma + 10);
+            }}
+            onDelete={(id) => {
+              const newGoals = currentDay.goals.filter(g => g.id !== id);
+              updateDayData(selectedDate, { goals: newGoals });
+              saveKarma(karma - 5);
+            }}
+          />
+        )}
+        {activeTab === Tab.INBOX && <InboxView />}
+        {activeTab === Tab.UPCOMING && (
+          <ProductivityHub 
+            userName={userName}
+            karma={karma}
+            localData={localData} 
+            dailyGoal={dailyGoalTarget}
+            weeklyGoal={weeklyGoalTarget}
+            setDailyGoal={setDailyGoalTarget}
+            setWeeklyGoal={setWeeklyGoalTarget}
+          />
+        )}
+        {activeTab === Tab.BROWSE && (
+          <PerformanceView 
+            currentDay={currentDay} 
+            categories={categories}
+            totalMins={currentDay.studyLogs.reduce((acc, log) => acc + (parseInt(log.time) || 0), 0)}
+            onUpdate={(updates) => updateDayData(selectedDate, updates)}
+            onDeleteCategory={deleteCategory}
+            onAddCategory={addCategory}
+          />
+        )}
       </main>
 
+      <Sidebar 
+        isOpen={showSidebar} 
+        onClose={() => setShowSidebar(false)} 
+        userName={userName}
+        karma={karma}
+        setActiveTab={setActiveTab}
+      />
+
+      <button 
+        onClick={() => setShowQuickAdd(true)}
+        className="fixed right-6 bottom-24 w-12 h-12 bg-rose-500 rounded-2xl shadow-2xl flex items-center justify-center text-white active:scale-90 transition-all z-40"
+      >
+        <Plus className="w-6 h-6" />
+      </button>
+
+      <nav className="fixed bottom-0 left-0 right-0 bg-[#0a0a0a]/95 backdrop-blur-2xl border-t border-white/5 px-4 pt-4 pb-6 flex justify-around items-center z-50">
+        <NavBtn icon={Inbox} label="Inbox" active={activeTab === Tab.INBOX} color="text-amber-500" onClick={() => setActiveTab(Tab.INBOX)} />
+        <NavBtn icon={CalendarDays} label="Today" active={activeTab === Tab.TODAY} color="text-indigo-500" onClick={() => setActiveTab(Tab.TODAY)} />
+        <NavBtn icon={Trophy} label="Productivity" active={activeTab === Tab.UPCOMING} color="text-rose-500" onClick={() => setActiveTab(Tab.UPCOMING)} />
+        <NavBtn icon={Activity} label="Performance" active={activeTab === Tab.BROWSE} color="text-emerald-500" onClick={() => setActiveTab(Tab.BROWSE)} />
+      </nav>
+
+      {showQuickAdd && (
+        <QuickAddModal 
+          onClose={() => setShowQuickAdd(false)} 
+          onAdd={(val) => {
+            addTask(val, selectedDate);
+            setShowQuickAdd(false);
+          }} 
+        />
+      )}
+
       {showAI && <AIModal onClose={() => setShowAI(false)} context={currentDay} />}
-      <Navigation activeTab={activeTab} setActiveTab={setActiveTab} />
     </div>
   );
 };
 
-const DiagnosticItem: React.FC<{ label: string, value: string | number, sub: string, color: string }> = ({ label, value, sub, color }) => (
-  <div className="flex justify-between items-center p-4 md:p-6 bg-slate-950/50 rounded-2xl md:rounded-[32px] border border-white/5">
-    <span className="text-[9px] md:text-[10px] font-black uppercase text-slate-500">{label}</span>
-    <span className={`text-base md:text-lg font-black ${color} flex items-center gap-2`}>{value} <span className="text-[8px] text-slate-700 font-bold">{sub}</span></span>
+const Header: React.FC<{ activeTab: Tab, onMenu: () => void, onAI: () => void }> = ({ activeTab, onMenu, onAI }) => (
+  <header className="px-6 pt-12 pb-5 flex justify-between items-center bg-black/80 backdrop-blur-lg sticky top-0 z-30 border-b border-white/5">
+    <div className="flex items-center gap-4">
+      <button onClick={onMenu} className="p-2 -ml-2 text-slate-400 hover:text-white"><Menu className="w-6 h-6" /></button>
+      <h1 className="text-lg font-black text-white capitalize tracking-tight">
+        {activeTab === Tab.BROWSE ? 'Performance' : activeTab === Tab.UPCOMING ? 'Productivity' : activeTab}
+      </h1>
+    </div>
+    <button onClick={onAI} className="p-2.5 bg-indigo-600/20 rounded-xl text-indigo-400 border border-indigo-600/20"><Bot className="w-5 h-5" /></button>
+  </header>
+);
+
+const NavBtn: React.FC<{ icon: any, label: string, active: boolean, color: string, onClick: () => void }> = ({ icon: Icon, label, active, color, onClick }) => (
+  <button onClick={onClick} className={`flex flex-col items-center gap-1.5 transition-all outline-none ${active ? color : 'text-slate-600 opacity-60'}`}>
+    <Icon className={`w-5 h-5 ${active ? 'fill-current scale-110' : ''}`} />
+    <span className="text-[8px] font-black uppercase tracking-[0.15em]">{label}</span>
+  </button>
+);
+
+const Sidebar: React.FC<{ isOpen: boolean, onClose: () => void, userName: string, karma: number, setActiveTab: (t: Tab) => void }> = ({ isOpen, onClose, userName, karma, setActiveTab }) => (
+  <>
+    <div className={`fixed inset-0 bg-black/75 backdrop-blur-md z-[60] transition-opacity duration-300 ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`} onClick={onClose} />
+    <aside className={`fixed top-0 left-0 h-full w-[80%] max-w-xs bg-[#0a0a0a] z-[70] transform transition-transform duration-300 ease-out border-r border-white/5 ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+      <div className="p-6 space-y-8 h-full flex flex-col">
+        <div className="flex justify-between items-center">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white font-black text-lg shadow-lg shadow-indigo-600/20">{userName.charAt(0).toUpperCase()}</div>
+            <div>
+              <p className="text-sm font-black text-white">{userName}</p>
+              <p className="text-[8px] text-slate-500 font-bold uppercase tracking-widest">{karma} Karma Points</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="p-2 text-slate-600 hover:text-white"><X className="w-5 h-5" /></button>
+        </div>
+        <div className="flex-1 overflow-y-auto space-y-2">
+          <SideItem icon={Inbox} label="Inbox" onClick={() => { setActiveTab(Tab.INBOX); onClose(); }} color="text-amber-500" />
+          <SideItem icon={CalendarDays} label="Today" onClick={() => { setActiveTab(Tab.TODAY); onClose(); }} color="text-indigo-500" />
+          <SideItem icon={Trophy} label="Productivity" onClick={() => { setActiveTab(Tab.UPCOMING); onClose(); }} color="text-rose-500" />
+          <SideItem icon={Activity} label="Performance" onClick={() => { setActiveTab(Tab.BROWSE); onClose(); }} color="text-emerald-500" />
+        </div>
+        <button onClick={() => { localStorage.clear(); window.location.reload(); }} className="flex items-center gap-3 p-4 bg-rose-500/10 rounded-xl text-rose-500 font-black uppercase text-[9px] tracking-widest hover:bg-rose-500/20 transition-all">
+          <LogOut className="w-4 h-4" /> Reset Identity
+        </button>
+      </div>
+    </aside>
+  </>
+);
+
+const SideItem: React.FC<{ icon: any, label: string, onClick?: () => void, color: string }> = ({ icon: Icon, label, onClick, color }) => (
+  <div onClick={onClick} className="flex items-center justify-between p-3.5 rounded-xl transition-all cursor-pointer text-slate-400 hover:bg-white/5 hover:text-white">
+    <div className="flex items-center gap-3">
+      <Icon className={`w-5 h-5 ${color}`} />
+      <span className="text-xs font-bold">{label}</span>
+    </div>
   </div>
 );
 
-const Onboarding: React.FC<{ onComplete: () => void }> = ({ onComplete }) => {
-  const [step, setStep] = useState(0);
-  const steps = [
-    { title: "Peak Flow", icon: <Lightbulb className="w-12 h-12 text-rose-400" />, desc: "Convert daily thoughts into performance data." },
-    { title: "Energy OS", icon: <BrainCircuit className="w-12 h-12 text-indigo-400" />, desc: "Triage your mental load to prevent burnout." },
-    { title: "AI Strategy", icon: <Bot className="w-12 h-12 text-emerald-400" />, desc: "Real-time course corrections from your Neural Shadow." }
-  ];
+const ProductivityHub: React.FC<{ 
+  userName: string, karma: number, localData: Record<string, DayData>, dailyGoal: number, weeklyGoal: number, setDailyGoal: (n: number) => void, setWeeklyGoal: (n: number) => void 
+}> = ({ userName, karma, localData, dailyGoal, weeklyGoal, setDailyGoal, setWeeklyGoal }) => {
+  const [activeSubTab, setActiveSubTab] = useState<'daily' | 'weekly' | 'karma'>('daily');
+  const todayStr = new Date().toISOString().split('T')[0];
+  const goalsToday = localData[todayStr]?.goals || [];
+  const completedToday = goalsToday.filter(g => g.done).length;
+
+  const weeklyData = useMemo(() => {
+    return Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(); d.setDate(d.getDate() - i);
+      const ds = d.toISOString().split('T')[0];
+      return (localData[ds]?.goals || []).filter(g => g.done).length;
+    }).reverse();
+  }, [localData]);
+
+  const totalWeeklyCompleted = weeklyData.reduce((a, b) => a + b, 0);
 
   return (
-    <div className="h-screen bg-[#020617] flex items-center justify-center p-4 overflow-hidden">
-      <div className="max-w-xl w-full bg-slate-900/80 border border-white/10 rounded-[40px] md:rounded-[64px] p-8 md:p-20 space-y-12 animate-in backdrop-blur-3xl">
-        <div className="flex flex-col items-center text-center space-y-6">
-          <div className="p-8 bg-slate-950 rounded-3xl border border-white/10">{steps[step].icon}</div>
-          <h2 className="text-4xl font-black uppercase text-white tracking-tighter">{steps[step].title}</h2>
-          <p className="text-slate-400 text-lg leading-relaxed">{steps[step].desc}</p>
+    <div className="px-6 space-y-6 animate-in">
+      <div className="flex items-center gap-4 bg-rose-500/10 p-4 rounded-3xl border border-rose-500/20 shadow-sm">
+        <div className="w-12 h-12 bg-gradient-to-br from-rose-500 to-rose-700 rounded-2xl flex items-center justify-center text-white text-xl font-black shadow-lg shadow-rose-500/30">
+          {userName.charAt(0).toUpperCase()}
         </div>
-        <div className="flex gap-2 justify-center">
-          {steps.map((_, i) => <div key={i} className={`h-1.5 rounded-full transition-all ${i === step ? 'w-10 bg-indigo-500' : 'w-3 bg-slate-800'}`} />)}
+        <div>
+          <h3 className="text-sm font-black text-white leading-tight">{userName}</h3>
+          <p className="text-[8px] text-rose-400 font-black uppercase tracking-widest mt-1 flex items-center gap-1">
+            <TrendingUp className="w-2.5 h-2.5" /> Efficiency Rank: Novice
+          </p>
         </div>
-        <button onClick={() => step === steps.length - 1 ? onComplete() : setStep(s => s + 1)} className="w-full bg-white text-slate-950 py-5 rounded-2xl font-black uppercase text-xs tracking-widest shadow-2xl active:scale-95">
-          {step === steps.length - 1 ? "Initialize" : "Next"}
-        </button>
+      </div>
+      <div className="flex bg-[#0a0a0a] p-1 rounded-xl border border-white/5">
+        {['daily', 'weekly', 'karma'].map(t => (
+          <button key={t} onClick={() => setActiveSubTab(t as any)} className={`flex-1 py-2 text-[9px] font-black uppercase tracking-widest rounded-lg transition-all ${activeSubTab === t ? 'bg-rose-500 text-white shadow-md' : 'text-slate-500'}`}>
+            {t}
+          </button>
+        ))}
+      </div>
+      <div className="min-h-[250px]">
+        {activeSubTab === 'daily' && (
+          <div className="space-y-6 animate-in">
+            <div className="flex justify-between items-center bg-[#0a0a0a] p-5 rounded-3xl border border-white/5 shadow-inner">
+              <div className="space-y-1">
+                <h4 className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Today's Alignment</h4>
+                <p className="text-2xl font-black text-white">{completedToday}<span className="text-slate-800 mx-1">/</span>{dailyGoal}</p>
+                <div className="flex gap-3 pt-1">
+                   <button onClick={() => setDailyGoal(Math.max(1, dailyGoal - 1))} className="text-[9px] text-rose-500 font-black opacity-60">DEC</button>
+                   <button onClick={() => setDailyGoal(dailyGoal + 1)} className="text-[9px] text-rose-500 font-black opacity-60">INC</button>
+                </div>
+              </div>
+              <div className="relative w-14 h-14">
+                <svg className="w-full h-full transform -rotate-90">
+                  <circle cx="28" cy="28" r="24" fill="transparent" stroke="#111" strokeWidth="4" />
+                  <circle cx="28" cy="28" r="24" fill="transparent" stroke="#f43f5e" strokeWidth="4" strokeDasharray={150.8} strokeDashoffset={150.8 - (150.8 * Math.min(1, completedToday / Math.max(1, dailyGoal)))} strokeLinecap="round" className="transition-all duration-1000 ease-out" />
+                </svg>
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <span className="text-[7px] font-black text-white/40">{Math.round((completedToday/Math.max(1, dailyGoal))*100)}%</span>
+                </div>
+              </div>
+            </div>
+            <div className="space-y-3 px-1">
+              <h4 className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Efficiency Wave</h4>
+              <div className="flex items-end gap-2 h-16 pt-2">
+                {weeklyData.map((v, i) => (
+                  <div key={i} className="flex-1 flex flex-col items-center gap-1.5">
+                    <div className="w-full bg-slate-900/40 rounded-sm relative overflow-hidden h-full">
+                      <div className="absolute bottom-0 left-0 right-0 bg-rose-500 opacity-90 transition-all duration-500" style={{ height: `${Math.min(100, (v / Math.max(1, dailyGoal)) * 100)}%` }} />
+                    </div>
+                    <span className="text-[6px] font-black text-slate-700">{['T','W','T','F','S','S','M'][(new Date().getDay() + i + 1) % 7]}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+        {activeSubTab === 'weekly' && (
+          <div className="space-y-6 animate-in">
+            <div className="flex justify-between items-center bg-[#0a0a0a] p-5 rounded-3xl border border-white/5 shadow-inner">
+              <div className="space-y-1">
+                <h4 className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Strategic Cycle</h4>
+                <p className="text-2xl font-black text-white">{totalWeeklyCompleted}<span className="text-slate-800 mx-1">/</span>{weeklyGoal}</p>
+                <button onClick={() => setWeeklyGoal(weeklyGoal + 5)} className="text-[8px] text-rose-500 font-black uppercase mt-1 flex items-center gap-1"><Plus className="w-2 h-2"/> Scaling Target</button>
+              </div>
+              <div className="relative w-14 h-14">
+                <svg className="w-full h-full transform -rotate-90">
+                  <circle cx="28" cy="28" r="24" fill="transparent" stroke="#111" strokeWidth="4" />
+                  <circle cx="28" cy="28" r="24" fill="transparent" stroke="#f43f5e" strokeWidth="4" strokeDasharray={150.8} strokeDashoffset={150.8 - (150.8 * Math.min(1, totalWeeklyCompleted / Math.max(1, weeklyGoal)))} strokeLinecap="round" className="transition-all duration-1000 ease-out" />
+                </svg>
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <Trophy className="w-4 h-4 text-amber-500/40" />
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+        {activeSubTab === 'karma' && (
+          <div className="space-y-6 animate-in">
+            <div className="bg-[#0a0a0a] p-6 rounded-3xl border border-white/5 flex justify-between items-center relative overflow-hidden">
+              <div className="relative z-10">
+                <h4 className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Standing</h4>
+                <p className="text-3xl font-black text-white tracking-tighter">{karma} <span className="text-rose-500 text-[10px] font-black tracking-widest ml-1">POINTS</span></p>
+                <p className="text-[8px] text-rose-500/70 font-black uppercase mt-2 tracking-[0.25em]">Status: Sync Stabilized</p>
+              </div>
+              <Sparkles className="w-10 h-10 text-rose-500 opacity-10" />
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
 };
 
-const MissionControl: React.FC<{ title: string, items: Goal[], onUpdate: (items: Goal[]) => void, accent: 'indigo' | 'purple', icon: React.ReactNode, progress: number }> = ({ title, items, onUpdate, accent, icon, progress }) => {
-  const [val, setVal] = useState('');
-  const [showAdd, setShowAdd] = useState(false);
-  const add = () => { if(val) { onUpdate([...items, { text: val, priority: 'standard', id: Date.now().toString(), done: false }]); setVal(''); setShowAdd(false); } };
-  return (
-    <div className="space-y-8">
-      <div className="flex justify-between items-center gap-4">
-        <div className="flex items-center gap-4">
-          <div className="p-3 bg-slate-950 rounded-xl text-white">{icon}</div>
-          <h3 className="text-xl md:text-2xl font-black uppercase text-white tracking-tight">{title}</h3>
+const TodayView: React.FC<{ data: Goal[], onToggle: (id: string) => void, onDelete: (id: string) => void }> = ({ data, onToggle, onDelete }) => (
+  <div className="px-6 space-y-6 animate-in">
+    <div className="flex items-center justify-between text-slate-500 text-[9px] font-black uppercase tracking-[0.3em] border-b border-indigo-500/10 pb-3">
+      <div className="flex items-center gap-2"><CalendarDays className="w-3.5 h-3.5 text-indigo-500" />{new Date().toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' })}</div>
+    </div>
+    <div className="space-y-2.5">
+      {data.map(goal => (
+        <div key={goal.id} className="flex items-start gap-3 p-4 bg-indigo-500/5 rounded-2xl group border border-indigo-500/10 shadow-sm transition-all active:scale-[0.98]">
+          <button onClick={() => onToggle(goal.id)} className={`mt-0.5 w-5 h-5 rounded-lg border-2 flex items-center justify-center transition-all ${goal.done ? 'bg-indigo-600 border-indigo-600' : 'border-slate-800'}`}>{goal.done && <Check className="w-3 h-3 text-white" strokeWidth={4} />}</button>
+          <div className="flex-1"><p className={`text-sm font-bold tracking-tight leading-tight ${goal.done ? 'line-through text-slate-700' : 'text-slate-100'}`}>{goal.text}</p></div>
+          <button onClick={() => onDelete(goal.id)} className="p-1.5 text-rose-500/30 hover:text-rose-500"><Trash2 className="w-4 h-4" /></button>
         </div>
-        <div className="text-right">
-          <span className={`text-2xl md:text-3xl font-black ${accent === 'indigo' ? 'text-indigo-400' : 'text-purple-400'}`}>{progress}%</span>
+      ))}
+      {data.length === 0 && <div className="py-24 text-center flex flex-col items-center gap-4 opacity-10"><CheckCircle2 className="w-8 h-8" /><p className="text-[9px] font-black uppercase tracking-[0.4em]">Zero</p></div>}
+    </div>
+  </div>
+);
+
+const InboxView = () => (
+  <div className="px-6 py-24 flex flex-col items-center justify-center text-center">
+    <div className="w-16 h-16 bg-amber-500/10 rounded-3xl flex items-center justify-center mb-6 border border-amber-500/20 shadow-lg shadow-amber-500/5 animate-pulse"><Inbox className="w-8 h-8 text-amber-500" /></div>
+    <h2 className="text-lg font-black text-white uppercase tracking-tighter">Queue Depleted</h2>
+    <p className="text-[9px] text-slate-500 mt-2 uppercase tracking-widest font-black max-w-[180px] leading-relaxed">System standby.</p>
+  </div>
+);
+
+const PerformanceView: React.FC<{ 
+  currentDay: DayData, categories: any[], totalMins: number, onUpdate: (u: Partial<DayData>) => void, onDeleteCategory: (id: string) => void, onAddCategory: (n: string, i: string, c: string) => void 
+}> = ({ currentDay, categories, totalMins, onUpdate, onDeleteCategory, onAddCategory }) => {
+  const [showAddForm, setShowAddForm] = useState(false);
+  const deviceMins = parseInt(currentDay.deviceTime) || 0;
+  const dH = Math.floor(deviceMins / 60);
+  const dM = deviceMins % 60;
+
+  return (
+    <div className="px-6 space-y-8 animate-in">
+      <div className="bg-emerald-500/10 p-6 rounded-3xl border border-emerald-500/20 shadow-xl relative overflow-hidden">
+        <div className="absolute top-0 right-0 -mr-4 -mt-4 opacity-5"><Activity className="w-24 h-24" /></div>
+        <div className="flex justify-between items-start mb-6 relative z-10">
+          <div className="space-y-1">
+            <h2 className="text-lg font-black text-white uppercase tracking-tight">Focus Matrix</h2>
+            <p className="text-[8px] text-emerald-400 font-black uppercase tracking-widest">Deep Sync: {formatMins(totalMins)}</p>
+          </div>
+          <Cpu className="w-5 h-5 text-emerald-500/40" />
+        </div>
+        <div className="flex gap-3 relative z-10">
+          <div className="flex-1 bg-black/60 p-3 rounded-xl border border-white/5">
+            <span className="text-[7px] font-black text-slate-600 uppercase block mb-1">H</span>
+            <input type="number" value={dH} onChange={e => onUpdate({ deviceTime: (Math.min(24, parseInt(e.target.value) || 0) * 60 + dM).toString() })} className="w-full bg-transparent border-none text-xl font-black text-white outline-none" />
+          </div>
+          <div className="flex-1 bg-black/60 p-3 rounded-xl border border-white/5">
+            <span className="text-[7px] font-black text-slate-600 uppercase block mb-1">M</span>
+            <input type="number" value={dM} onChange={e => onUpdate({ deviceTime: (dH * 60 + Math.min(59, parseInt(e.target.value) || 0)).toString() })} className="w-full bg-transparent border-none text-xl font-black text-white outline-none" />
+          </div>
         </div>
       </div>
-      <div className="space-y-4">
-        {!showAdd ? (
-          <button onClick={() => setShowAdd(true)} className="w-full py-4 border border-dashed border-white/10 rounded-2xl text-[9px] font-black uppercase tracking-widest text-slate-500 flex items-center justify-center gap-2 hover:text-white transition-all">
-            <Plus className="w-4 h-4" /> ADD MISSION
-          </button>
-        ) : (
-          <div className="bg-slate-950/80 p-6 rounded-3xl border border-white/10 space-y-4">
-             <input value={val} onChange={e => setVal(e.target.value)} placeholder="Objective..." className="w-full bg-slate-900 border-none rounded-xl px-4 py-3 text-sm font-bold text-white outline-none" />
-             <div className="flex gap-2">
-               <button onClick={add} className="flex-1 py-3 rounded-xl bg-indigo-600 text-white font-black uppercase text-[10px]">Sync</button>
-               <button onClick={() => setShowAdd(false)} className="px-6 py-3 rounded-xl bg-slate-800 text-slate-400 font-black uppercase text-[10px]">X</button>
-             </div>
-          </div>
-        )}
-        <div className="grid gap-3">
-          {items.map(i => (
-            <div key={i.id} className={`flex items-center justify-between p-4 md:p-6 rounded-2xl md:rounded-3xl border transition-all ${i.done ? 'bg-slate-950/20 opacity-40' : 'bg-slate-900/60 border-white/5'}`}>
-               <div className="flex items-center gap-4 cursor-pointer flex-1" onClick={() => onUpdate(items.map(x => x.id === i.id ? {...x, done: !x.done} : x))}>
-                  <div className={`w-6 h-6 rounded-lg border flex items-center justify-center ${i.done ? 'bg-indigo-600 border-transparent' : 'border-slate-700'}`}>
-                    {i.done && <Check className="w-4 h-4 text-white" />}
-                  </div>
-                  <span className={`text-base font-bold ${i.done ? 'line-through' : 'text-slate-100'}`}>{i.text}</span>
-               </div>
-               <button onClick={() => onUpdate(items.filter(x => x.id !== i.id))} className="text-rose-500/30 p-2"><Trash2 className="w-4 h-4" /></button>
+
+      <div className="grid grid-cols-1 gap-4">
+        {categories.map(cat => (
+          <div key={cat.id} className="bg-[#0a0a0a] p-5 rounded-3xl border border-white/5 flex flex-col gap-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className={`p-2 rounded-xl bg-gradient-to-br ${cat.color} text-white shadow-md`}>{ICON_MAP[cat.icon] || <Activity />}</div>
+                <h4 className="text-[10px] font-black text-white uppercase tracking-widest">{cat.name}</h4>
+              </div>
+              <button onClick={() => onDeleteCategory(cat.id)} className="p-2 text-rose-500/20 hover:text-rose-500 transition-colors"><Trash className="w-3.5 h-3.5" /></button>
             </div>
+            <SegmentMiniForm onAdd={(t, m) => onUpdate({ studyLogs: [...currentDay.studyLogs, { id: Date.now().toString(), category: cat.name, topic: t, time: m.toString() }] })} color={cat.color} />
+            <div className="space-y-2 max-h-32 overflow-y-auto custom-scroll pr-1">
+              {currentDay.studyLogs.filter(l => l.category === cat.name).map(log => (
+                <div key={log.id} className="flex justify-between items-center p-2.5 bg-white/5 rounded-xl border border-white/5 text-[9px]">
+                  <span className="font-bold text-slate-300 truncate max-w-[130px]">{log.topic}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="font-black text-slate-600 uppercase tracking-tighter">{formatMins(parseInt(log.time))}</span>
+                    <button onClick={() => onUpdate({ studyLogs: currentDay.studyLogs.filter(l => l.id !== log.id) })} className="text-rose-500/30 hover:text-rose-500"><Trash2 className="w-3.5 h-3.5"/></button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+
+        {showAddForm ? (
+          <div className="bg-[#0a0a0a] p-6 rounded-3xl border border-white/10 space-y-4 animate-in">
+            <h4 className="text-[9px] font-black text-white uppercase tracking-widest">Create Neural Segment</h4>
+            <AddCategoryForm onAdd={(n, i, c) => { onAddCategory(n, i, c); setShowAddForm(false); }} onCancel={() => setShowAddForm(false)} />
+          </div>
+        ) : (
+          <button onClick={() => setShowAddForm(true)} className="p-8 rounded-3xl border-2 border-dashed border-white/5 text-slate-600 flex items-center justify-center gap-3 hover:border-emerald-500/30 hover:text-emerald-500 transition-all">
+            <Plus className="w-5 h-5" />
+            <span className="text-[10px] font-black uppercase tracking-widest">Initialize Segment</span>
+          </button>
+        )}
+      </div>
+    </div>
+  );
+};
+
+const AddCategoryForm: React.FC<{ onAdd: (n: string, i: string, c: string) => void, onCancel: () => void }> = ({ onAdd, onCancel }) => {
+  const [name, setName] = useState('');
+  const [icon, setIcon] = useState('Activity');
+  const [color, setColor] = useState(COLOR_OPTIONS[0]);
+
+  return (
+    <div className="space-y-5">
+      <input autoFocus value={name} onChange={e => setName(e.target.value)} placeholder="Category Name" className="w-full bg-black border border-white/5 rounded-xl px-4 py-3 text-xs font-bold text-white outline-none" />
+      <div className="space-y-2">
+        <span className="text-[7px] font-black text-slate-600 uppercase tracking-widest">Select Node Icon</span>
+        <div className="flex flex-wrap gap-2">
+          {Object.keys(ICON_MAP).map(i => (
+            <button key={i} onClick={() => setIcon(i)} className={`p-2 rounded-lg border ${icon === i ? 'bg-indigo-600 border-indigo-600 text-white' : 'border-white/5 text-slate-600'} transition-all`}>
+              {React.cloneElement(ICON_MAP[i], { size: 16 })}
+            </button>
           ))}
         </div>
       </div>
-    </div>
-  );
-};
-
-const StrategicHierarchy: React.FC<{ title: string, icon: React.ReactNode, color: 'rose' | 'indigo', placeholder: string }> = ({ title, icon, color, placeholder }) => {
-  const [items, setItems] = useState<{id: string, text: string}[]>([]);
-  const [val, setVal] = useState('');
-  const add = () => { if(val) { setItems([...items, { id: Date.now().toString(), text: val }]); setVal(''); } };
-  return (
-    <div className="bg-slate-900/40 border border-white/5 rounded-3xl md:rounded-[56px] p-6 md:p-12 space-y-8 backdrop-blur-xl shadow-2xl">
-      <div className="flex items-center gap-4">
-        <div className="p-3 bg-slate-950 rounded-xl">{icon}</div>
-        <h3 className="text-xl md:text-2xl font-black uppercase text-white tracking-tight">{title}</h3>
-      </div>
-      <div className="flex gap-2">
-        <input value={val} onChange={e => setVal(e.target.value)} onKeyDown={e => e.key === 'Enter' && add()} placeholder={placeholder} className="flex-1 bg-slate-950 border border-white/10 rounded-xl px-4 py-3 text-sm outline-none text-white" />
-        <button onClick={add} className={`px-5 rounded-xl bg-indigo-600 text-white active:scale-95 transition-all`}><Plus className="w-5 h-5" /></button>
-      </div>
-      <div className="space-y-3">
-        {items.map(i => (
-          <div key={i.id} className="bg-slate-950/60 p-4 rounded-2xl flex justify-between items-center border border-white/5">
-            <span className="text-sm font-bold text-slate-200">{i.text}</span>
-            <button onClick={() => setItems(items.filter(x => x.id !== i.id))} className="text-rose-500/40 p-2"><Trash2 className="w-4 h-4" /></button>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-};
-
-const CategoryCard: React.FC<{ cat: Category, logs: StudyLog[], onAdd: (t: string, tm: string, type: 'gain' | 'drain') => void, onDelete: (id: string) => void }> = ({ cat, logs, onAdd, onDelete }) => {
-  const [topic, setTopic] = useState('');
-  const [time, setTime] = useState('');
-  const [load, setLoad] = useState<'drain' | 'gain'>('gain');
-  const submit = () => { if(topic && time) { onAdd(topic, time, load); setTopic(''); setTime(''); } };
-  return (
-    <div className="bg-slate-900/40 border border-white/5 rounded-3xl md:rounded-[56px] p-6 md:p-10 flex flex-col min-h-[450px] md:h-[650px] group backdrop-blur-xl">
-      <div className="flex items-center gap-4 mb-6 md:mb-10">
-        <div className={`p-4 rounded-2xl bg-gradient-to-br ${cat.color} text-white shadow-lg`}>{cat.icon}</div>
-        <h4 className="text-base md:text-lg font-black uppercase text-white/90">{cat.name}</h4>
-      </div>
-      <div className="space-y-4 mb-6">
-        <input value={topic} onChange={e => setTopic(e.target.value)} placeholder="Objective..." className="w-full bg-slate-950/80 border border-white/5 rounded-xl px-4 py-3 text-xs md:text-sm font-bold text-white outline-none" />
-        <div className="flex gap-2">
-          <input value={time} onChange={e => setTime(e.target.value)} placeholder="90m" className="flex-1 bg-slate-950/80 border border-white/5 rounded-xl px-4 py-3 text-xs outline-none" />
-          <div className="flex bg-slate-950 rounded-xl p-1 border border-white/5">
-             <button onClick={() => setLoad('gain')} className={`p-2 rounded-lg ${load === 'gain' ? 'bg-emerald-500 text-white' : 'text-slate-600'}`}><BatteryCharging className="w-4 h-4" /></button>
-             <button onClick={() => setLoad('drain')} className={`p-2 rounded-lg ${load === 'drain' ? 'bg-rose-500 text-white' : 'text-slate-600'}`}><ZapOff className="w-4 h-4" /></button>
-          </div>
+      <div className="space-y-2">
+        <span className="text-[7px] font-black text-slate-600 uppercase tracking-widest">Aura Color</span>
+        <div className="flex flex-wrap gap-2">
+          {COLOR_OPTIONS.map(c => (
+            <button key={c} onClick={() => setColor(c)} className={`w-8 h-8 rounded-full bg-gradient-to-br ${c} border-2 ${color === c ? 'border-white' : 'border-transparent'}`} />
+          ))}
         </div>
-        <button onClick={submit} className={`w-full py-4 rounded-xl bg-gradient-to-br ${cat.color} text-white font-black uppercase text-[9px] tracking-widest shadow-lg active:scale-95 transition-all`}>Sync Log</button>
       </div>
-      <div className="flex-1 overflow-y-auto space-y-3 custom-scroll pr-1">
-        {logs.map(l => (
-          <div key={l.id} className="bg-slate-950/40 p-4 rounded-2xl flex justify-between items-center border border-white/5">
-            <div className="flex flex-col">
-              <p className="text-sm font-bold text-white">{l.topic}</p>
-              <p className="text-[8px] text-slate-600 font-black mt-1 uppercase tracking-tighter">{l.time}</p>
-            </div>
-            <button onClick={() => onDelete(l.id)} className="text-rose-500/20 hover:text-rose-500 transition-all p-2"><Trash2 className="w-4 h-4" /></button>
-          </div>
-        ))}
+      <div className="flex gap-2 pt-2">
+        <button onClick={onCancel} className="flex-1 py-3 rounded-xl border border-white/5 text-[9px] font-black uppercase tracking-widest">Abort</button>
+        <button onClick={() => name && onAdd(name, icon, color)} className="flex-1 py-3 rounded-xl bg-emerald-600 text-white text-[9px] font-black uppercase tracking-widest">Initialize</button>
       </div>
     </div>
   );
 };
 
-const StatCard: React.FC<{ label: string, value: string | number, unit: string, color: string }> = ({ label, value, unit, color }) => (
-  <div className="bg-slate-950/60 p-6 md:p-12 rounded-3xl md:rounded-[56px] border border-white/5 flex flex-col items-center justify-center space-y-2 shadow-inner">
-    <span className="text-[9px] md:text-[11px] font-black uppercase text-slate-600 tracking-widest">{label}</span>
-    <div className="flex items-baseline gap-2">
-      <span className={`text-4xl md:text-6xl font-black ${color}`}>{value}</span>
-      <span className="text-[9px] font-black text-slate-800 uppercase">{unit}</span>
+const SegmentMiniForm: React.FC<{ onAdd: (t: string, m: number) => void, color: string }> = ({ onAdd, color }) => {
+  const [topic, setTopic] = useState('');
+  const [mins, setMins] = useState('');
+  return (
+    <div className="flex gap-2">
+      <input value={topic} onChange={e => setTopic(e.target.value)} placeholder="Task..." className="flex-1 bg-black border border-white/5 rounded-lg px-3 py-2 text-[9px] font-bold text-white outline-none" />
+      <input type="number" value={mins} onChange={e => setMins(e.target.value)} placeholder="Min" className="w-12 bg-black border border-white/5 rounded-lg px-2 py-2 text-[9px] font-bold text-white text-center outline-none" />
+      <button onClick={() => { if(topic && mins) { onAdd(topic, parseInt(mins)); setTopic(''); setMins(''); } }} className={`px-3 rounded-lg bg-gradient-to-br ${color} text-white font-black uppercase text-[8px] active:scale-95 transition-transform`}>ADD</button>
     </div>
-  </div>
-);
+  );
+};
+
+const QuickAddModal: React.FC<{ onClose: () => void, onAdd: (v: string) => void }> = ({ onClose, onAdd }) => {
+  const [val, setVal] = useState('');
+  return (
+    <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-[100] flex items-end justify-center p-0" onClick={onClose}>
+      <div className="bg-[#0a0a0a] w-full rounded-t-[32px] p-6 pb-12 space-y-6 border-t border-white/10 animate-in" onClick={e => e.stopPropagation()}>
+        <div className="flex justify-between items-center"><span className="text-[9px] font-black text-rose-500 uppercase tracking-widest">Immediate Objective</span><button onClick={onClose} className="p-2 text-slate-700"><X className="w-5 h-5"/></button></div>
+        <input autoFocus value={val} onChange={e => setVal(e.target.value)} placeholder="Define protocol..." className="w-full bg-transparent border-none text-xl font-black text-white outline-none" onKeyDown={e => e.key === 'Enter' && val && onAdd(val)} />
+        <div className="flex justify-end"><button onClick={() => val && onAdd(val)} className="bg-rose-500 text-white px-8 py-3.5 rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-lg shadow-rose-500/20" disabled={!val}>Deploy</button></div>
+      </div>
+    </div>
+  );
+};
 
 const AIModal: React.FC<{ onClose: () => void, context: DayData }> = ({ onClose, context }) => {
   const [prompt, setPrompt] = useState("");
@@ -432,30 +596,22 @@ const AIModal: React.FC<{ onClose: () => void, context: DayData }> = ({ onClose,
   const [loading, setLoading] = useState(false);
   const handleAsk = async () => {
     if (!prompt) return;
-    setLoading(true);
-    setResponse("");
-    try {
-      const stream = askAIArchitectStream(prompt, context);
-      for await (const chunk of stream) { setResponse(prev => prev + chunk); }
-    } catch (err) { setResponse("Neural bridge disrupted."); } finally { setLoading(false); }
+    setLoading(true); setResponse("");
+    const stream = askAIArchitectStream(prompt, context);
+    for await (const chunk of stream) { setResponse(prev => prev + chunk); }
+    setLoading(false);
   };
   return (
-    <div className="fixed inset-0 bg-black/95 backdrop-blur-3xl z-[100] flex items-center justify-center md:p-6 animate-in" onClick={onClose}>
-      <div className="bg-slate-950 border-white/10 w-full h-full md:h-auto md:max-w-4xl md:rounded-[48px] overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
-        <div className="p-6 md:p-10 bg-indigo-600 flex justify-between items-center">
-          <div className="flex items-center gap-4">
-            <Bot className="text-white w-8 h-8 md:w-10 h-10" />
-            <h2 className="text-2xl md:text-4xl font-black text-white uppercase tracking-tight">AI Architect</h2>
-          </div>
-          <button onClick={onClose} className="p-3 hover:bg-white/10 rounded-xl text-white"><X className="w-6 h-6"/></button>
+    <div className="fixed inset-0 bg-black/95 backdrop-blur-3xl z-[100] flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-[#050505] w-full max-w-md rounded-[40px] border border-white/10 overflow-hidden flex flex-col shadow-2xl animate-in" onClick={e => e.stopPropagation()}>
+        <div className="p-6 bg-indigo-600 flex justify-between items-center">
+          <div className="flex items-center gap-3"><Bot className="w-8 h-8 text-white"/><h2 className="text-xl font-black text-white tracking-tighter uppercase leading-none">Oracle</h2></div>
+          <button onClick={onClose} className="p-2 text-white/50 hover:text-white"><X className="w-5 h-5" /></button>
         </div>
-        <div className="flex-1 p-6 md:p-16 space-y-6 md:space-y-12 overflow-y-auto custom-scroll">
-          <textarea value={prompt} onChange={e => setPrompt(e.target.value)} placeholder="Ask anything..." className="w-full bg-slate-900 border-white/5 rounded-2xl md:rounded-[32px] p-6 md:p-10 text-base md:text-lg font-bold text-white h-40 md:h-56 resize-none outline-none focus:ring-2 focus:ring-indigo-500/20" />
-          <button onClick={handleAsk} disabled={loading} className="w-full py-5 md:py-8 bg-indigo-600 rounded-2xl md:rounded-[32px] font-black uppercase tracking-widest text-xs shadow-2xl transition-all flex items-center justify-center gap-4 hover:bg-indigo-500 text-white disabled:opacity-50">
-            {loading ? <div className="w-6 h-6 border-2 border-white/20 border-t-white rounded-full animate-spin" /> : <Wand2 className="w-5 h-5"/>}
-            {loading ? "Analyzing..." : "Run Analysis"}
-          </button>
-          {response && <div className="bg-indigo-500/5 border border-indigo-500/10 rounded-2xl md:rounded-[32px] p-6 md:p-12"><p className="text-base md:text-lg font-medium leading-relaxed text-indigo-100 italic whitespace-pre-wrap">{response}</p></div>}
+        <div className="p-6 space-y-6 overflow-y-auto custom-scroll max-h-[70vh]">
+          <textarea value={prompt} onChange={e => setPrompt(e.target.value)} placeholder="Consult architect..." className="w-full bg-black border border-white/5 rounded-2xl p-4 text-sm font-bold text-white h-40 outline-none focus:border-indigo-500" />
+          <button onClick={handleAsk} disabled={loading} className="w-full py-4 bg-indigo-600 rounded-2xl font-black uppercase text-[10px] text-white disabled:opacity-50">{loading ? "BRIDGING..." : "SUBMIT"}</button>
+          {response && <div className="p-4 bg-indigo-500/5 border border-indigo-500/10 rounded-2xl"><p className="text-sm italic text-indigo-100 whitespace-pre-wrap leading-relaxed">{response}</p></div>}
         </div>
       </div>
     </div>

@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Calendar, Target, Clock, BarChart3 } from 'lucide-react';
+import { Calendar, Target, Clock } from 'lucide-react';
 import { Tab } from '../types';
 
 interface NavProps {
@@ -10,10 +10,10 @@ interface NavProps {
 
 export const Navigation: React.FC<NavProps> = ({ activeTab, setActiveTab }) => {
   const navItems = [
-    { id: Tab.CALENDAR, icon: Calendar, label: 'Daily', color: 'text-indigo-400' },
-    { id: Tab.PLANNING, icon: Target, label: 'Goals', color: 'text-purple-400' },
-    { id: Tab.DIGITAL, icon: Clock, label: 'Digital', color: 'text-cyan-400' },
-    { id: Tab.ANALYTICS, icon: BarChart3, label: 'Log', color: 'text-emerald-400' },
+    // Fixed: Changed CALENDAR to TODAY, PLANNING to UPCOMING, and DIGITAL to BROWSE to match types.ts
+    { id: Tab.TODAY, icon: Calendar, label: 'Daily', color: 'text-indigo-400' },
+    { id: Tab.UPCOMING, icon: Target, label: 'Goals', color: 'text-purple-400' },
+    { id: Tab.BROWSE, icon: Clock, label: 'Digital', color: 'text-cyan-400' },
   ];
 
   return (
