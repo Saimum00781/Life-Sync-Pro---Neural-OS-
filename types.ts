@@ -27,7 +27,6 @@ export enum AppState {
 }
 
 export enum Tab {
-  INBOX = 'inbox',
   TODAY = 'today',
   UPCOMING = 'upcoming',
   BROWSE = 'browse'

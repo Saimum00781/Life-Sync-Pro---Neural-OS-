@@ -8,14 +8,24 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <style>
+        :root {
+            --app-bg: #020617;
+            --card-bg: #0f172a;
+            --accent-primary: #4f46e5;
+            --text-main: #f8fafc;
+            --text-dim: #64748b;
+            --border-color: rgba(255, 255, 255, 0.05);
+        }
+
         body {
             font-family: 'Inter', sans-serif;
             margin: 0;
             padding: 0;
-            background-color: #020617;
-            color: #f8fafc;
+            background-color: var(--app-bg);
+            color: var(--text-main);
             overflow: hidden;
             user-select: none;
+            transition: background-color 0.5s ease;
         }
         
         .custom-scroll::-webkit-scrollbar {
@@ -25,32 +35,23 @@
             background: transparent;
         }
         .custom-scroll::-webkit-scrollbar-thumb {
-            background: #1e293b;
+            background: var(--border-color);
             border-radius: 20px;
         }
-        .custom-scroll::-webkit-scrollbar-thumb:hover {
-            background: #4f46e5;
-        }
 
-        /* Fluid Animations */
         .animate-in {
-            animation: fadeIn 0.6s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+            animation: fadeIn 0.4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
         }
         
         @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(20px) scale(0.98); }
-            to { opacity: 1; transform: translateY(0) scale(1); }
+            from { opacity: 0; transform: translateY(15px); }
+            to { opacity: 1; transform: translateY(0); }
         }
 
         input[type="number"]::-webkit-inner-spin-button,
         input[type="number"]::-webkit-outer-spin-button {
             -webkit-appearance: none;
             margin: 0;
-        }
-
-        ::selection {
-            background: rgba(79, 70, 229, 0.3);
-            color: #fff;
         }
     </style>
 <script type="importmap">
