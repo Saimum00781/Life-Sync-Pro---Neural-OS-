@@ -6,6 +6,7 @@ export interface Goal {
   priority: 'critical' | 'standard';
   done: boolean;
   date: string;
+  source?: string;
 }
 
 export interface StudyLog {
