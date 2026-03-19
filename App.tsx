@@ -23,47 +23,47 @@ const THEMES: Record<string, any> = {
   'Charcoal': { bg: '#121212', card: '#1e1e1e', accent: '#3700b3', text: '#ffffff' }
 };
 
+import { useAppStore } from './store';
+
 const App: React.FC = () => {
-  const [appState, setAppState] = useState<AppState>(AppState.WELCOME);
+  const { 
+    userName, setUserName, gender, setGender, themeName, setThemeName, onboardingComplete, completeOnboarding,
+    thresholds, setThresholds, segments, setSegments, localData, updateDayData, habits, setHabits
+  } = useAppStore();
+
+  const [appState, setAppState] = useState<AppState>(onboardingComplete ? AppState.DASHBOARD : AppState.WELCOME);
   const [onboardingStep, setOnboardingStep] = useState(0); 
   const [activeTab, setActiveTab] = useState<Tab>(Tab.TODAY);
   const [overlayView, setOverlayView] = useState<string | null>(null);
-  const [localData, setLocalData] = useState<Record<string, DayData>>({});
-  const [userName, setUserName] = useState("");
-  const [gender, setGender] = useState<'boy' | 'girl' | ''>('');
-  const [themeName, setThemeName] = useState('Midnight');
   const [notifications, setNotifications] = useState<{id: string, text: string, read: boolean}[]>([]);
   const [selectedCalendarDate, setSelectedCalendarDate] = useState(new Date().toISOString().split('T')[0]);
   const [showSidebar, setShowSidebar] = useState(false);
   const [showNotifPanel, setShowNotifPanel] = useState(false);
   
-  // Custom Settings
-  const [thresholds, setThresholds] = useState({ deviceGood: 240, deviceOk: 420, segmentGood: 180, segmentOk: 60 });
-  const [habits, setHabits] = useState(['Reading', 'Meditation', 'Deep Work']);
-  const [segments, setSegments] = useState(['Academic', 'Tuition', 'Career', 'Self Growth', 'Islamic', 'Custom']);
+  // Custom Prompt State
+  const [promptConfig, setPromptConfig] = useState<{ isOpen: boolean; message: string; onSubmit: (val: string) => void; onCancel: () => void; defaultValue?: string } | null>(null);
+
+  const customPrompt = (message: string, defaultValue: string = ""): Promise<string | null> => {
+    return new Promise((resolve) => {
+      setPromptConfig({
+        isOpen: true,
+        message,
+        defaultValue,
+        onSubmit: (val) => {
+          setPromptConfig(null);
+          resolve(val);
+        },
+        onCancel: () => {
+          setPromptConfig(null);
+          resolve(null);
+        }
+      });
+    });
+  };
 
   useEffect(() => {
-    const savedData = localStorage.getItem('lsp_v12_data');
-    const savedName = localStorage.getItem('lsp_user_name');
-    const savedGender = localStorage.getItem('lsp_user_gender');
-    const savedTheme = localStorage.getItem('lsp_theme');
-    const savedThresh = localStorage.getItem('lsp_thresholds');
-    const savedHabits = localStorage.getItem('lsp_habits');
-    const savedSegments = localStorage.getItem('lsp_segments');
-    const onboardingComplete = localStorage.getItem('lsp_onboarding_done');
-
-    if (savedData) setLocalData(JSON.parse(savedData));
-    if (savedTheme) applyTheme(savedTheme);
-    if (savedThresh) setThresholds(JSON.parse(savedThresh));
-    if (savedHabits) setHabits(JSON.parse(savedHabits));
-    if (savedSegments) setSegments(JSON.parse(savedSegments));
-    
-    if (savedName && savedGender && onboardingComplete) { 
-      setUserName(savedName); 
-      setGender(savedGender as any);
-      setAppState(AppState.DASHBOARD); 
-    }
-  }, []);
+    applyTheme(themeName);
+  }, [themeName]);
 
   const applyTheme = (name: string) => {
     const t = THEMES[name];
@@ -73,24 +73,13 @@ const App: React.FC = () => {
     root.style.setProperty('--card-bg', t.card);
     root.style.setProperty('--accent-primary', t.accent);
     root.style.setProperty('--text-main', t.text);
-    localStorage.setItem('lsp_theme', name);
-    setThemeName(name);
   };
 
   const saveProfile = (name: string, gen: 'boy' | 'girl') => {
     setUserName(name);
     setGender(gen);
-    localStorage.setItem('lsp_user_name', name);
-    localStorage.setItem('lsp_user_gender', gen);
-    localStorage.setItem('lsp_onboarding_done', 'true');
+    completeOnboarding();
     setAppState(AppState.DASHBOARD);
-  };
-
-  const updateDayData = (date: string, updates: Partial<DayData>) => {
-    const day = localData[date] || { goals: [], deviceTime: '0', studyLogs: [] };
-    const newData = { ...localData, [date]: { ...day, ...updates } };
-    localStorage.setItem('lsp_v12_data', JSON.stringify(newData));
-    setLocalData(newData);
   };
 
   const currentDayStr = new Date().toISOString().split('T')[0];
@@ -180,7 +169,7 @@ const App: React.FC = () => {
       />
 
       <div className="flex-1 flex flex-col relative overflow-hidden">
-        <header className="px-6 pt-12 pb-4 flex justify-between items-center bg-transparent backdrop-blur-md z-30 sticky top-0">
+        <header className="px-6 pt-6 pb-4 flex justify-between items-center bg-transparent backdrop-blur-md z-30 sticky top-0">
           <div className="flex items-center gap-4">
             <button onClick={() => setShowSidebar(true)} className="p-2.5 -ml-2 text-slate-400 hover:text-white active:scale-90 transition-transform"><Menu size={26}/></button>
             <h1 className="text-xl font-black uppercase tracking-tighter text-white/90">{overlayView || activeTab}</h1>
@@ -203,7 +192,7 @@ const App: React.FC = () => {
           </div>
         </header>
 
-        <main className="flex-1 overflow-y-auto custom-scroll pb-36 px-6 pt-2">
+        <main className="flex-1 overflow-y-auto custom-scroll pb-24 px-6 pt-2">
           {overlayView ? (
             <OverlayRouter 
               view={overlayView} 
@@ -223,6 +212,7 @@ const App: React.FC = () => {
               setSegments={(s: any) => { setSegments(s); localStorage.setItem('lsp_segments', JSON.stringify(s)); }}
               selectedDate={selectedCalendarDate}
               setSelectedDate={setSelectedCalendarDate}
+              customPrompt={customPrompt}
             />
           ) : (
             <TabRouter 
@@ -238,17 +228,54 @@ const App: React.FC = () => {
           )}
         </main>
 
-        <nav className="fixed bottom-0 left-0 right-0 bg-[var(--card-bg)]/90 backdrop-blur-xl border-t border-white/5 px-6 pb-8 pt-4 flex justify-around items-center z-50 shadow-[0_-10px_40px_rgba(0,0,0,0.3)]">
+        <nav className="fixed bottom-0 left-0 right-0 bg-[var(--card-bg)]/90 backdrop-blur-xl border-t border-white/5 px-6 pb-6 pt-4 flex justify-around items-center z-50 shadow-[0_-10px_40px_rgba(0,0,0,0.3)]">
           <NavBtn icon={CalendarDays} label="Daily" active={activeTab === Tab.TODAY && !overlayView} onClick={() => {setActiveTab(Tab.TODAY); setOverlayView(null);}} />
           <NavBtn icon={Trophy} label="Stats" active={activeTab === Tab.UPCOMING && !overlayView} onClick={() => {setActiveTab(Tab.UPCOMING); setOverlayView(null);}} />
           <NavBtn icon={Activity} label="Digital" active={activeTab === Tab.BROWSE && !overlayView} onClick={() => {setActiveTab(Tab.BROWSE); setOverlayView(null);}} />
         </nav>
+        
+        {promptConfig && promptConfig.isOpen && (
+          <PromptModal 
+            message={promptConfig.message} 
+            defaultValue={promptConfig.defaultValue} 
+            onSubmit={promptConfig.onSubmit} 
+            onCancel={promptConfig.onCancel} 
+          />
+        )}
       </div>
     </div>
   );
 };
 
 // --- SUB-COMPONENTS ---
+
+const PromptModal: React.FC<{ message: string; defaultValue?: string; onSubmit: (val: string) => void; onCancel: () => void }> = ({ message, defaultValue, onSubmit, onCancel }) => {
+  const [val, setVal] = useState(defaultValue || "");
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
+
+  return (
+    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[200] flex items-center justify-center p-6 animate-in">
+      <div className="bg-slate-900 border border-white/10 rounded-[2rem] p-8 w-full max-w-sm shadow-2xl relative overflow-hidden">
+        <h3 className="text-lg font-black uppercase text-white mb-4">{message}</h3>
+        <input 
+          ref={inputRef}
+          value={val} 
+          onChange={e => setVal(e.target.value)} 
+          onKeyDown={e => { if (e.key === 'Enter') onSubmit(val); if (e.key === 'Escape') onCancel(); }}
+          className="w-full bg-black/40 border border-white/10 p-4 rounded-xl text-white outline-none focus:border-[var(--accent-primary)] transition-all mb-6" 
+        />
+        <div className="flex gap-3">
+          <button onClick={onCancel} className="flex-1 py-3 rounded-xl text-slate-400 font-bold uppercase text-xs hover:bg-white/5 transition-colors">Cancel</button>
+          <button onClick={() => onSubmit(val)} className="flex-1 py-3 bg-[var(--accent-primary)] rounded-xl text-white font-black uppercase text-xs shadow-lg active:scale-95 transition-all">Confirm</button>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const Sidebar: React.FC<any> = ({ isOpen, onClose, userName, onSelectOverlay }) => (
   <>
@@ -570,14 +597,16 @@ const SegmentCard: React.FC<any> = ({ name, logs, onAdd, thresholds }) => {
   );
 };
 
+import { HabitView } from './components/HabitView';
+
 // --- OVERLAY ROUTER ---
 
 const OverlayRouter: React.FC<any> = (props) => {
   switch (props.view) {
     case 'focus': return <FocusView />;
-    case 'habits': return <HabitView habits={props.habits} />;
+    case 'habits': return <HabitView />;
     case 'countdown': return <CountdownView {...props} />;
-    case 'notes': return <NoteView />;
+    case 'notes': return <NoteView customPrompt={props.customPrompt} />;
     case 'profile': return <ProfileView {...props} />;
     case 'oracle': return <AIModal onClose={props.onClose} />;
     default: return null;
@@ -633,27 +662,10 @@ const FocusView = () => {
   );
 };
 
-const HabitView = ({ habits }: any) => (
-  <div className="space-y-6 animate-in max-w-md mx-auto">
-    <div className="bg-emerald-600 p-8 rounded-[2rem] text-white shadow-xl">
-      <h2 className="text-xl font-black uppercase flex items-center gap-3"><Flame size={24}/> Habit Sync</h2>
-      <p className="text-xs opacity-80 mt-2 leading-relaxed">Small daily shifts compound into high performance outcomes.</p>
-    </div>
-    <div className="space-y-3">
-      {habits.map((h: string) => (
-        <div key={h} className="bg-slate-900 p-5 rounded-2xl border border-white/5 flex justify-between items-center shadow-md">
-          <span className="font-bold text-sm text-white">{h}</span>
-          <div className="flex gap-2">{[1,1,1,0,0,0,0].map((s,i) => <div key={i} className={`w-5 h-5 rounded-md ${s ? 'bg-emerald-500 shadow-glow-sm' : 'bg-white/5'}`} />)}</div>
-        </div>
-      ))}
-    </div>
-  </div>
-);
-
-const CountdownView = ({ selectedDate, setSelectedDate, addNotification }: any) => {
+const CountdownView = ({ selectedDate, setSelectedDate, addNotification, customPrompt }: any) => {
   const [events, setEvents] = useState<any[]>(() => JSON.parse(localStorage.getItem('lsp_v12_events') || '[]'));
-  const add = () => {
-    const text = window.prompt("Capture Milestone Name:");
+  const add = async () => {
+    const text = await customPrompt("Capture Milestone Name:");
     if(text) {
       const newList = [...events, {id: Date.now(), date: selectedDate, text}];
       setEvents(newList);
@@ -694,10 +706,10 @@ const CountdownView = ({ selectedDate, setSelectedDate, addNotification }: any) 
   );
 };
 
-const NoteView = () => {
+const NoteView = ({ customPrompt }: any) => {
   const [notes, setNotes] = useState<any[]>(() => JSON.parse(localStorage.getItem('lsp_v12_notes') || '[]'));
-  const add = () => {
-    const text = window.prompt("Capture Neural Insight:");
+  const add = async () => {
+    const text = await customPrompt("Capture Neural Insight:");
     if(text) {
       const up = [{id: Date.now(), text}, ...notes];
       setNotes(up);
@@ -727,14 +739,14 @@ const NoteView = () => {
   );
 };
 
-const ProfileView = ({ name, setUserName, gender, setGender, themeName, setThemeName, thresholds, setThresholds, habits, setHabits, segments, setSegments }: any) => {
+const ProfileView = ({ name, setUserName, gender, setGender, themeName, setThemeName, thresholds, setThresholds, habits, setHabits, segments, setSegments, customPrompt }: any) => {
   const [showAbout, setShowAbout] = useState(false);
-  const addHabit = () => {
-    const h = window.prompt("New Habit Loop?");
+  const addHabit = async () => {
+    const h = await customPrompt("New Habit Loop?");
     if(h) setHabits([...habits, h]);
   };
-  const addSegment = () => {
-    const s = window.prompt("New Matrix Segment?");
+  const addSegment = async () => {
+    const s = await customPrompt("New Matrix Segment?");
     if(s) setSegments([...segments, s]);
   };
 
