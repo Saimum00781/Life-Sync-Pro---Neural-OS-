@@ -20,8 +20,14 @@ export interface StudyLog {
 
 export interface DayData {
   goals: Goal[];
-  deviceTime: string;
+  deviceTime: string; // legacy
+  leisureDeviceTime?: number;
+  productiveDeviceTime?: number;
+  offlineTime?: number;
+  sleepTime?: number;
+  waterIntake?: number;
   studyLogs: StudyLog[];
+  habits?: string[];
 }
 
 export interface Event {
@@ -41,9 +47,10 @@ interface AppState {
   gender: 'boy' | 'girl' | '';
   themeName: string;
   onboardingComplete: boolean;
+  healthProfile: { height: number; weight: number };
   
   // Settings
-  thresholds: { screen: number; study: number; sleep: number };
+  thresholds: { leisureMax: number; productiveMin: number; offlineMin: number; sleepMin: number };
   segments: string[];
   
   // Data
@@ -60,8 +67,9 @@ interface AppState {
   setGender: (gender: 'boy' | 'girl' | '') => void;
   setThemeName: (theme: string) => void;
   completeOnboarding: () => void;
+  setHealthProfile: (profile: { height: number; weight: number }) => void;
   
-  setThresholds: (thresholds: { screen: number; study: number; sleep: number }) => void;
+  setThresholds: (thresholds: { leisureMax: number; productiveMin: number; offlineMin: number; sleepMin: number }) => void;
   setSegments: (segments: string[]) => void;
   
   setLocalData: (data: Record<string, DayData>) => void;
@@ -84,8 +92,9 @@ export const useAppStore = create<AppState>()(
       gender: '',
       themeName: 'Midnight',
       onboardingComplete: false,
+      healthProfile: { height: 170, weight: 65 },
       
-      thresholds: { screen: 120, study: 240, sleep: 480 },
+      thresholds: { leisureMax: 120, productiveMin: 240, offlineMin: 120, sleepMin: 480 },
       segments: ['Deep Work', 'Admin', 'Health', 'Learning'],
       
       localData: {},
@@ -99,6 +108,7 @@ export const useAppStore = create<AppState>()(
       setGender: (gender) => set({ gender }),
       setThemeName: (themeName) => set({ themeName }),
       completeOnboarding: () => set({ onboardingComplete: true }),
+      setHealthProfile: (healthProfile) => set({ healthProfile }),
       
       setThresholds: (thresholds) => set({ thresholds }),
       setSegments: (segments) => set({ segments }),
@@ -108,7 +118,7 @@ export const useAppStore = create<AppState>()(
         localData: {
           ...state.localData,
           [date]: {
-            ...(state.localData[date] || { goals: [], deviceTime: "0", studyLogs: [] }),
+            ...(state.localData[date] || { goals: [], deviceTime: "0", studyLogs: [], leisureDeviceTime: 0, productiveDeviceTime: 0, offlineTime: 0, sleepTime: 0, waterIntake: 0 }),
             ...data
           }
         }
