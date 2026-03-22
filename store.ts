@@ -26,6 +26,9 @@ export interface DayData {
   offlineTime?: number;
   sleepTime?: number;
   waterIntake?: number;
+  steps?: number;
+  caloriesBurned?: number;
+  caloriesEaten?: number;
   studyLogs: StudyLog[];
   habits?: string[];
 }
@@ -47,11 +50,13 @@ interface AppState {
   gender: 'boy' | 'girl' | '';
   themeName: string;
   onboardingComplete: boolean;
-  healthProfile: { height: number; weight: number };
+  healthProfile: { height: number; weight: number; workInfo?: string; location?: string };
+  coreIdentity: string;
   
   // Settings
   thresholds: { leisureMax: number; productiveMin: number; offlineMin: number; sleepMin: number };
   segments: string[];
+  habitStacks: { id: string; currentHabit: string; newHabit: string }[];
   
   // Data
   localData: Record<string, DayData>;
@@ -59,7 +64,7 @@ interface AppState {
   notes: Note[];
   
   // Habits: date -> array of completed habit names
-  habits: string[];
+  habits: any[];
   habitCompletions: Record<string, string[]>;
 
   // Actions
@@ -67,10 +72,12 @@ interface AppState {
   setGender: (gender: 'boy' | 'girl' | '') => void;
   setThemeName: (theme: string) => void;
   completeOnboarding: () => void;
-  setHealthProfile: (profile: { height: number; weight: number }) => void;
+  setHealthProfile: (profile: { height: number; weight: number; workInfo?: string; location?: string }) => void;
+  setCoreIdentity: (identity: string) => void;
   
   setThresholds: (thresholds: { leisureMax: number; productiveMin: number; offlineMin: number; sleepMin: number }) => void;
   setSegments: (segments: string[]) => void;
+  setHabitStacks: (stacks: { id: string; currentHabit: string; newHabit: string }[]) => void;
   
   setLocalData: (data: Record<string, DayData>) => void;
   updateDayData: (date: string, data: Partial<DayData>) => void;
@@ -92,10 +99,12 @@ export const useAppStore = create<AppState>()(
       gender: '',
       themeName: 'Midnight',
       onboardingComplete: false,
-      healthProfile: { height: 170, weight: 65 },
+      healthProfile: { height: 170, weight: 65, workInfo: '', location: '' },
+      coreIdentity: 'I am a high-performance operator.',
       
       thresholds: { leisureMax: 120, productiveMin: 240, offlineMin: 120, sleepMin: 480 },
       segments: ['Deep Work', 'Admin', 'Health', 'Learning'],
+      habitStacks: [],
       
       localData: {},
       events: [],
@@ -109,9 +118,11 @@ export const useAppStore = create<AppState>()(
       setThemeName: (themeName) => set({ themeName }),
       completeOnboarding: () => set({ onboardingComplete: true }),
       setHealthProfile: (healthProfile) => set({ healthProfile }),
+      setCoreIdentity: (coreIdentity) => set({ coreIdentity }),
       
       setThresholds: (thresholds) => set({ thresholds }),
       setSegments: (segments) => set({ segments }),
+      setHabitStacks: (habitStacks) => set({ habitStacks }),
       
       setLocalData: (localData) => set({ localData }),
       updateDayData: (date, data) => set((state) => ({

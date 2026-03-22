@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Settings2, Plus, X } from 'lucide-react';
 import { THEMES } from '../constants';
 
-export const ProfileView = ({ name, setUserName, gender, setGender, themeName, setThemeName, thresholds, setThresholds, habits, setHabits, segments, setSegments, customPrompt, showSuccessToast }: any) => {
+export const ProfileView = ({ name, setUserName, gender, setGender, themeName, setThemeName, thresholds, setThresholds, habits, setHabits, segments, setSegments, customPrompt, showSuccessToast, coreIdentity, setCoreIdentity, habitStacks, setHabitStacks }: any) => {
   const [showAbout, setShowAbout] = useState(false);
   const addHabit = async () => {
     const h = await customPrompt("New Habit Loop?");
@@ -18,23 +18,43 @@ export const ProfileView = ({ name, setUserName, gender, setGender, themeName, s
       if (showSuccessToast) showSuccessToast("SEGMENT ADDED");
     }
   };
+  const addHabitStack = async () => {
+    const current = await customPrompt("After I... (Current Habit)");
+    if (!current) return;
+    const newH = await customPrompt(`After I ${current}, I will... (New Habit)`);
+    if (!newH) return;
+    setHabitStacks([...(habitStacks || []), { id: Date.now().toString(), currentHabit: current, newHabit: newH }]);
+    if (showSuccessToast) showSuccessToast("STACK ADDED");
+  };
 
   const handleSaveConfig = () => {
-    if (showSuccessToast) showSuccessToast("CONFIG SYNCHRONIZED");
+    if (showSuccessToast) showSuccessToast("SETTINGS SYNCHRONIZED");
   };
 
   return (
     <div className="space-y-8 animate-in pb-12 w-full max-w-md mx-auto">
       <div className="bg-slate-900 p-5 rounded-[1.5rem] border border-white/10 space-y-6 shadow-2xl">
         <div className="flex justify-between items-center mb-2">
-          <h3 className="text-lg font-mono uppercase text-white">Protocol Config</h3>
+          <h3 className="text-lg font-mono uppercase text-white">System Settings</h3>
           <Settings2 size={16} className="text-slate-500" />
         </div>
         
         <div className="space-y-3">
           <label className="text-[10px] font-mono uppercase text-slate-500 block tracking-widest ml-1">Identity Protocol</label>
           <input value={name} onChange={e => setUserName(e.target.value)} className="w-full bg-black/40 p-3.5 rounded-xl border border-white/5 outline-none font-mono text-white focus:border-[var(--accent-primary)] transition-all shadow-inner text-xs" placeholder="Edit Name" />
-          <div className="flex gap-3">
+          
+          <div className="mt-4">
+            <label className="text-[10px] font-mono uppercase text-slate-500 block tracking-widest ml-1 mb-2">Core Identity (Atomic Habits)</label>
+            <textarea 
+              value={coreIdentity || ''} 
+              onChange={e => setCoreIdentity(e.target.value)} 
+              className="w-full bg-black/40 p-3.5 rounded-xl border border-white/5 outline-none font-mono text-white focus:border-[var(--accent-primary)] transition-all shadow-inner text-xs min-h-[80px]" 
+              placeholder="e.g., I am the type of person who never misses a workout." 
+            />
+            <p className="text-[8px] font-mono text-slate-500 mt-1 ml-1">True behavior change is identity change.</p>
+          </div>
+
+          <div className="flex gap-3 mt-4">
             <button onClick={() => setGender('boy')} className={`flex-1 p-3 rounded-xl border transition-all flex flex-col items-center gap-2 ${gender === 'boy' ? 'border-[var(--accent-primary)] bg-[var(--accent-primary)]/10 text-white shadow-[0_0_15px_rgba(var(--accent-primary-rgb),0.3)]' : 'border-white/5 opacity-40 grayscale'}`}>
                <svg viewBox="0 0 100 100" className="w-6 h-6 fill-none stroke-current stroke-2"><circle cx="50" cy="35" r="15"/><path d="M50 50 L50 75 M50 55 L35 70 M50 55 L65 70 M50 75 L35 90 M50 75 L65 90"/><path d="M40 30 Q50 20 60 30"/></svg>
                <span className="text-[10px] font-mono tracking-widest">BOY</span>
@@ -97,6 +117,26 @@ export const ProfileView = ({ name, setUserName, gender, setGender, themeName, s
 
         <div className="space-y-3">
            <div className="flex justify-between items-center ml-1">
+             <label className="text-[10px] font-mono uppercase text-slate-500 tracking-widest">Habit Stacking (Atomic)</label>
+             <button onClick={addHabitStack} className="p-1.5 bg-white/5 rounded-lg text-orange-400 hover:bg-orange-400/10 transition-colors"><Plus size={14}/></button>
+           </div>
+           <p className="text-[8px] font-mono text-slate-500 ml-1">"After I [Current Habit], I will [New Habit]"</p>
+           <div className="flex flex-col gap-2">
+             {(habitStacks || []).map((stack: any) => (
+               <div key={stack.id} className="bg-white/5 p-3 rounded-xl text-[10px] font-mono border border-white/5 flex flex-col gap-1 relative group">
+                 <div className="text-slate-400">After I <span className="text-white">{stack.currentHabit}</span>,</div>
+                 <div className="text-slate-400">I will <span className="text-orange-400">{stack.newHabit}</span>.</div>
+                 <button onClick={() => setHabitStacks((habitStacks || []).filter((x: any) => x.id !== stack.id))} className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity text-rose-400 p-1"><X size={12}/></button>
+               </div>
+             ))}
+             {(!habitStacks || habitStacks.length === 0) && (
+               <div className="text-center py-4 opacity-30 font-mono uppercase text-[10px] tracking-[0.25em] text-white border border-dashed border-white/10 rounded-xl">No stacks defined</div>
+             )}
+           </div>
+        </div>
+
+        <div className="space-y-3">
+           <div className="flex justify-between items-center ml-1">
              <label className="text-[10px] font-mono uppercase text-slate-500 tracking-widest">Neural Segments</label>
              <button onClick={addSegment} className="p-1.5 bg-white/5 rounded-lg text-indigo-400 hover:bg-indigo-400/10 transition-colors"><Plus size={14}/></button>
            </div>
@@ -111,7 +151,7 @@ export const ProfileView = ({ name, setUserName, gender, setGender, themeName, s
         </div>
         
         <button onClick={handleSaveConfig} className="w-full py-4 bg-[var(--accent-primary)] rounded-xl text-white font-mono uppercase text-[10px] shadow-xl shadow-[var(--accent-primary)]/20 active:scale-95 transition-all mt-6">
-          Synchronize Config
+          Synchronize Settings
         </button>
 
         <button onClick={() => setShowAbout(true)} className="w-full py-4 bg-white/5 border border-white/10 rounded-xl text-[10px] font-mono uppercase text-slate-400 hover:text-white transition-all shadow-md mt-4">About Us</button>

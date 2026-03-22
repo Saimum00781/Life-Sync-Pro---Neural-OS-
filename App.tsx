@@ -18,6 +18,7 @@ import { HabitView } from './src/components/HabitView';
 import { CountdownView } from './src/components/CountdownView';
 import { NoteView } from './src/components/NoteView';
 import { ProfileView } from './src/components/ProfileView';
+import { UserPortfolio } from './src/components/UserPortfolio';
 import { AIModal } from './src/components/AIModal';
 import { VitalsView } from './src/components/VitalsView';
 
@@ -27,7 +28,7 @@ const App: React.FC = () => {
   const { 
     userName, setUserName, gender, setGender, themeName, setThemeName, onboardingComplete, completeOnboarding,
     thresholds, setThresholds, segments, setSegments, localData, updateDayData, habits, setHabits,
-    healthProfile, setHealthProfile
+    healthProfile, setHealthProfile, coreIdentity, setCoreIdentity, habitStacks, setHabitStacks
   } = useAppStore();
 
   const [appState, setAppState] = useState<AppState>(onboardingComplete ? AppState.DASHBOARD : AppState.WELCOME);
@@ -103,46 +104,47 @@ const App: React.FC = () => {
     if (onboardingStep === 0) {
       return (
         <div className="h-screen bg-[var(--app-bg)] flex items-center justify-center p-6 transition-colors duration-500">
-          <div className="w-full max-w-sm aspect-[3/4] bg-[var(--card-bg)] rounded-[2rem] shadow-2xl relative border border-white/5 flex flex-col p-8 text-center animate-in overflow-hidden">
-            <div className="mt-8 space-y-2">
-              <h1 className="text-2xl font-mono text-[var(--text-main)] tracking-tighter uppercase text-white drop-shadow-lg">LIFE SYNC</h1>
+          <div className="w-full max-w-sm bg-[var(--card-bg)] rounded-[2rem] shadow-2xl relative border border-white/5 flex flex-col p-8 text-center animate-in overflow-hidden">
+            <div className="absolute top-0 right-0 p-8 opacity-5"><Cpu size={120} /></div>
+            <div className="mt-4 space-y-2 relative z-10">
+              <div className="w-16 h-16 bg-[var(--accent-primary)]/20 rounded-2xl mx-auto flex items-center justify-center mb-6 border border-[var(--accent-primary)]/30 shadow-[0_0_30px_rgba(var(--accent-primary-rgb),0.2)]">
+                <Activity size={32} className="text-[var(--accent-primary)]" />
+              </div>
+              <h1 className="text-3xl font-mono text-[var(--text-main)] tracking-tighter uppercase text-white drop-shadow-lg">LIFE SYNC</h1>
               <p className="text-[var(--text-main)] opacity-60 text-[10px] font-mono tracking-[0.4em] uppercase">Neural OS v12</p>
             </div>
             
-            <div className="flex-1 flex flex-col justify-center gap-6">
-              <input 
-                value={userName} 
-                onChange={e => setUserName(e.target.value)} 
-                className="w-full bg-black/20 border border-white/10 p-4 rounded-xl text-center text-white font-mono text-sm outline-none focus:border-[var(--accent-primary)] transition-all placeholder:text-white/30" 
-                placeholder="ENTER OPERATOR ID" 
-              />
-              <div className="flex gap-4">
-                <button onClick={() => setGender('boy')} className={`flex-1 p-4 rounded-xl border transition-all flex flex-col items-center gap-3 ${gender === 'boy' ? 'bg-[var(--accent-primary)]/20 border-[var(--accent-primary)] shadow-[0_0_15px_rgba(var(--accent-primary-rgb),0.3)]' : 'bg-white/5 border-white/5 opacity-50'}`}>
-                  <svg viewBox="0 0 100 100" className="w-8 h-8 fill-none stroke-current text-white stroke-2">
-                    <circle cx="50" cy="35" r="15" />
-                    <path d="M50 50 L50 75 M50 55 L35 70 M50 55 L65 70 M50 75 L35 90 M50 75 L65 90" />
-                    <path d="M40 30 Q50 20 60 30" />
-                  </svg>
-                  <span className="text-[10px] text-white font-mono tracking-widest">MALE</span>
-                </button>
-                <button onClick={() => setGender('girl')} className={`flex-1 p-4 rounded-xl border transition-all flex flex-col items-center gap-3 ${gender === 'girl' ? 'bg-[var(--accent-primary)]/20 border-[var(--accent-primary)] shadow-[0_0_15px_rgba(var(--accent-primary-rgb),0.3)]' : 'bg-white/5 border-white/5 opacity-50'}`}>
-                  <svg viewBox="0 0 100 100" className="w-8 h-8 fill-none stroke-current text-white stroke-2">
-                    <circle cx="50" cy="35" r="15" />
-                    <path d="M50 50 L50 75 M50 55 L35 70 M50 55 L65 70 M50 75 L35 90 M50 75 L65 90" />
-                    <path d="M35 35 Q50 15 65 35" />
-                    <path d="M40 75 L60 75" />
-                  </svg>
-                  <span className="text-[10px] text-white font-mono tracking-widest">FEMALE</span>
-                </button>
+            <div className="flex-1 flex flex-col justify-center gap-6 relative z-10 mt-8 mb-8">
+              <div className="space-y-2 text-left">
+                <label className="text-[10px] font-mono uppercase text-slate-400 tracking-widest ml-2">Operator ID</label>
+                <input 
+                  value={userName} 
+                  onChange={e => setUserName(e.target.value)} 
+                  className="w-full bg-black/40 border border-white/10 p-4 rounded-xl text-white font-mono text-sm outline-none focus:border-[var(--accent-primary)] transition-all placeholder:text-white/20 shadow-inner" 
+                  placeholder="Enter your name..." 
+                />
+              </div>
+              <div className="space-y-2 text-left">
+                <label className="text-[10px] font-mono uppercase text-slate-400 tracking-widest ml-2">Biological Profile</label>
+                <div className="flex gap-3">
+                  <button onClick={() => setGender('boy')} className={`flex-1 p-4 rounded-xl border transition-all flex flex-col items-center gap-3 ${gender === 'boy' ? 'bg-[var(--accent-primary)]/20 border-[var(--accent-primary)] shadow-[0_0_15px_rgba(var(--accent-primary-rgb),0.3)]' : 'bg-black/40 border-white/5 opacity-60 hover:opacity-100'}`}>
+                    <User size={24} className={gender === 'boy' ? 'text-[var(--accent-primary)]' : 'text-slate-400'} />
+                    <span className={`text-[10px] font-mono tracking-widest ${gender === 'boy' ? 'text-white' : 'text-slate-400'}`}>MALE</span>
+                  </button>
+                  <button onClick={() => setGender('girl')} className={`flex-1 p-4 rounded-xl border transition-all flex flex-col items-center gap-3 ${gender === 'girl' ? 'bg-[var(--accent-primary)]/20 border-[var(--accent-primary)] shadow-[0_0_15px_rgba(var(--accent-primary-rgb),0.3)]' : 'bg-black/40 border-white/5 opacity-60 hover:opacity-100'}`}>
+                    <User size={24} className={gender === 'girl' ? 'text-[var(--accent-primary)]' : 'text-slate-400'} />
+                    <span className={`text-[10px] font-mono tracking-widest ${gender === 'girl' ? 'text-white' : 'text-slate-400'}`}>FEMALE</span>
+                  </button>
+                </div>
               </div>
             </div>
             
             <button 
               disabled={!userName || !gender} 
               onClick={() => setOnboardingStep(1)} 
-              className="w-full py-4 bg-[var(--accent-primary)] text-white rounded-xl font-mono uppercase text-[10px] tracking-widest disabled:opacity-30 active:scale-95 transition-all shadow-lg flex items-center justify-center gap-2"
+              className="w-full py-4 bg-[var(--accent-primary)] text-white rounded-xl font-mono uppercase text-[10px] tracking-widest disabled:opacity-30 active:scale-95 transition-all shadow-[0_0_20px_rgba(var(--accent-primary-rgb),0.4)] flex items-center justify-center gap-2 relative z-10"
             >
-              Initialize <ArrowRight size={14} />
+              Initialize Sequence <ArrowRight size={14} />
             </button>
           </div>
         </div>
@@ -151,22 +153,39 @@ const App: React.FC = () => {
       return (
         <div className="h-screen bg-[var(--app-bg)] p-6 flex flex-col items-center justify-center animate-in">
           <div className="max-w-sm w-full bg-[var(--card-bg)] rounded-[2rem] border border-white/10 p-8 shadow-2xl space-y-8 relative overflow-hidden text-center">
-            <h2 className="text-lg font-mono text-white uppercase tracking-tight">System Modules</h2>
-            <div className="space-y-4 text-white opacity-80 text-left">
-              <div className="flex gap-4 items-center bg-white/5 p-4 rounded-xl border border-white/5">
+            <div className="absolute top-0 left-0 w-full h-1 bg-[var(--accent-primary)] shadow-[0_0_15px_rgba(var(--accent-primary-rgb),0.5)]" />
+            
+            <div className="space-y-2">
+              <div className="w-12 h-12 bg-emerald-500/20 rounded-full mx-auto flex items-center justify-center mb-4 border border-emerald-500/30">
+                <Check size={24} className="text-emerald-400" />
+              </div>
+              <h2 className="text-xl font-mono text-white uppercase tracking-tight">Profile Accepted</h2>
+              <p className="text-[10px] font-mono uppercase tracking-widest text-slate-400">Welcome, Operator {userName}</p>
+            </div>
+
+            <div className="space-y-3 text-left bg-black/20 p-5 rounded-[1.5rem] border border-white/5">
+              <h3 className="text-[10px] font-mono uppercase tracking-widest text-slate-500 mb-4">System Modules Online</h3>
+              <div className="flex gap-4 items-center">
                 <Activity size={16} className="text-emerald-400" />
-                <p className="text-[10px] font-mono"><b>Digital Matrix:</b> Monitor device exposure.</p>
+                <p className="text-xs font-mono text-slate-300">Digital Matrix</p>
               </div>
-              <div className="flex gap-4 items-center bg-white/5 p-4 rounded-xl border border-white/5">
+              <div className="flex gap-4 items-center">
                 <Timer size={16} className="text-indigo-400" />
-                <p className="text-[10px] font-mono"><b>Focus Chamber:</b> Interval protocol.</p>
+                <p className="text-xs font-mono text-slate-300">Focus Chamber</p>
               </div>
-              <div className="flex gap-4 items-center bg-white/5 p-4 rounded-xl border border-white/5">
+              <div className="flex gap-4 items-center">
                 <Sparkles size={16} className="text-orange-400" />
-                <p className="text-[10px] font-mono"><b>Habit Sync:</b> Automate daily routines.</p>
+                <p className="text-xs font-mono text-slate-300">Habit Sync</p>
+              </div>
+              <div className="flex gap-4 items-center">
+                <Bot size={16} className="text-blue-400" />
+                <p className="text-xs font-mono text-slate-300">Oracle AI</p>
               </div>
             </div>
-            <button onClick={() => saveProfile(userName, gender as any)} className="w-full py-4 bg-[var(--accent-primary)] rounded-xl text-white font-mono uppercase text-[10px] tracking-widest active:scale-95 transition-all shadow-lg">Enter Dashboard</button>
+            
+            <button onClick={() => saveProfile(userName, gender as any)} className="w-full py-4 bg-[var(--accent-primary)] rounded-xl text-white font-mono uppercase text-[10px] tracking-widest active:scale-95 transition-all shadow-[0_0_20px_rgba(var(--accent-primary-rgb),0.4)] flex items-center justify-center gap-2">
+              Enter Dashboard <ArrowRight size={14} />
+            </button>
           </div>
         </div>
       );
@@ -180,13 +199,18 @@ const App: React.FC = () => {
         onClose={() => setShowSidebar(false)} 
         onSelectOverlay={setOverlayView}
         userName={userName}
+        gender={gender}
       />
 
       <div className="flex-1 flex flex-col relative overflow-hidden max-w-5xl mx-auto w-full">
         <header className="px-6 pt-6 pb-4 flex justify-between items-center bg-transparent backdrop-blur-md z-30 sticky top-0">
           <div className="flex items-center gap-3">
-            <button onClick={() => setShowSidebar(true)} className="p-2 -ml-2 text-slate-400 hover:text-white active:scale-90 transition-transform"><Menu size={18}/></button>
-            <h1 className="text-base font-mono uppercase tracking-tighter text-white/90">{overlayView || activeTab}</h1>
+            {overlayView ? (
+              <button onClick={() => setOverlayView(null)} className="p-2 -ml-2 text-slate-400 hover:text-white active:scale-90 transition-transform"><ChevronLeft size={20}/></button>
+            ) : (
+              <button onClick={() => setShowSidebar(true)} className="p-2 -ml-2 text-slate-400 hover:text-white active:scale-90 transition-transform"><Menu size={18}/></button>
+            )}
+            <h1 className="text-base font-mono uppercase tracking-tighter text-white/90">{overlayView === 'profile' ? 'Settings' : overlayView === 'portfolio' ? 'Profile' : overlayView || activeTab}</h1>
           </div>
           <div className="flex gap-2">
             <div className="relative">
@@ -232,6 +256,10 @@ const App: React.FC = () => {
               localData={localData}
               healthProfile={healthProfile}
               setHealthProfile={setHealthProfile}
+              coreIdentity={coreIdentity}
+              setCoreIdentity={setCoreIdentity}
+              habitStacks={habitStacks}
+              setHabitStacks={setHabitStacks}
               showSuccessToast={showSuccessToast}
             />
           ) : (
@@ -306,20 +334,27 @@ const PromptModal: React.FC<{ message: string; defaultValue?: string; onSubmit: 
   );
 };
 
-const Sidebar: React.FC<any> = ({ isOpen, onClose, userName, onSelectOverlay }) => (
+const Sidebar: React.FC<any> = ({ isOpen, onClose, userName, gender, onSelectOverlay }) => (
   <>
     <div className={`fixed inset-0 bg-black/60 backdrop-blur-md z-[60] transition-all duration-300 ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`} onClick={onClose} />
     <aside className={`fixed top-0 left-0 h-full w-[80%] max-w-[280px] bg-[var(--card-bg)] z-[70] transform transition-transform duration-300 border-r border-white/5 ${isOpen ? 'translate-x-0' : '-translate-x-full'} shadow-2xl`}>
       <div className="flex flex-col h-full p-6">
         <div className="bg-white/5 p-6 rounded-[2rem] mb-6 flex flex-col items-center gap-4 border border-white/5 text-center shadow-lg">
-          <div className="w-16 h-16 bg-gradient-to-br from-[var(--accent-primary)] to-indigo-800 rounded-2xl flex items-center justify-center text-2xl font-mono text-white shadow-xl">
-            {userName[0]}
+          <div className={`w-16 h-16 rounded-2xl flex items-center justify-center text-3xl shadow-xl ${gender === 'boy' ? 'bg-gradient-to-br from-teal-500 to-emerald-800' : gender === 'girl' ? 'bg-gradient-to-br from-rose-500 to-pink-800' : 'bg-gradient-to-br from-[var(--accent-primary)] to-indigo-800'}`}>
+            {gender === 'boy' ? '👨‍🚀' : gender === 'girl' ? '👩‍🚀' : '👤'}
           </div>
           <div>
              <h2 className="text-lg font-mono uppercase text-white tracking-tight">{userName}</h2>
              <p className="text-[10px] text-slate-400 font-mono uppercase tracking-widest mt-1">Operator</p>
           </div>
-          <button onClick={() => { onSelectOverlay('profile'); onClose(); }} className="px-4 py-2 bg-white/5 rounded-xl text-[10px] font-mono uppercase tracking-widest text-slate-300 hover:text-white hover:bg-white/10 transition-all border border-white/5">Config</button>
+          <div className="flex gap-2">
+            <button onClick={() => { onSelectOverlay('portfolio'); onClose(); }} className="px-3 py-2 bg-[var(--accent-primary)] rounded-xl text-[10px] font-mono uppercase tracking-widest text-white hover:bg-[var(--accent-primary)]/80 transition-all shadow-lg flex items-center gap-2">
+              <User size={12} /> Profile
+            </button>
+            <button onClick={() => { onSelectOverlay('profile'); onClose(); }} className="px-3 py-2 bg-white/5 rounded-xl text-[10px] font-mono uppercase tracking-widest text-slate-300 hover:text-white hover:bg-white/10 transition-all border border-white/5 flex items-center gap-2">
+              <Settings2 size={12} />
+            </button>
+          </div>
         </div>
         <div className="space-y-1 flex-1">
           <SideItem icon={Timer} label="Focus Chamber" onClick={() => { onSelectOverlay('focus'); onClose(); }} />
@@ -389,7 +424,8 @@ const OverlayRouter: React.FC<any> = (props) => {
     case 'notes': return <NoteView customPrompt={props.customPrompt} showSuccessToast={props.showSuccessToast} />;
     case 'vitals': return <VitalsView currentDay={props.currentDay} updateDayData={props.updateDayData} healthProfile={props.healthProfile} setHealthProfile={props.setHealthProfile} showSuccessToast={props.showSuccessToast} />;
     case 'profile': return <ProfileView {...props} />;
-    case 'oracle': return <AIModal onClose={props.onClose} />;
+    case 'portfolio': return <UserPortfolio {...props} />;
+    case 'oracle': return <AIModal onClose={props.onClose} coreIdentity={props.coreIdentity} habits={props.habits} localData={props.localData} />;
     default: return null;
   }
 };

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Check, Trash2, Bot, Sparkles, Flame } from 'lucide-react';
 import { SectionHeader } from './SectionHeader';
 import { askAIArchitectStream } from '../../geminiService';
@@ -7,6 +7,13 @@ export const HabitView = ({ habits, currentDay, updateDayData, setHabits, custom
   const currentDayStr = new Date().toISOString().split('T')[0];
   const completed = currentDay?.habits || [];
   const [isGenerating, setIsGenerating] = useState(false);
+  const bottomRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!isGenerating && bottomRef.current) {
+      bottomRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [habits, isGenerating]);
 
   // Normalize existing string habits to object format
   const normalizedHabits = (habits || []).map((h: any, i: number) => {
@@ -135,6 +142,7 @@ export const HabitView = ({ habits, currentDay, updateDayData, setHabits, custom
           );
         })}
         {normalizedHabits.length === 0 && <p className="text-center py-12 opacity-30 font-mono uppercase text-[10px] tracking-[0.25em] text-white">No active loops</p>}
+        <div ref={bottomRef} className="h-4" />
       </div>
     </div>
   );
