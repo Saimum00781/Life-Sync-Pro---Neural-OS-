@@ -1,7 +1,23 @@
 import React from 'react';
-import { User, Briefcase, MapPin, Activity, Heart, BrainCircuit, Target, Shield } from 'lucide-react';
+import { User, Briefcase, MapPin, Activity, Heart, BrainCircuit, Target, Shield, Zap, Clock, CalendarDays } from 'lucide-react';
 
-export const UserPortfolio = ({ userName, gender, healthProfile, coreIdentity, setHealthProfile }: any) => {
+export const UserPortfolio = ({ userName, gender, healthProfile, coreIdentity, setHealthProfile, localData }: any) => {
+  const totalDaysSynced = Object.keys(localData || {}).length;
+  
+  let totalMissionsCompleted = 0;
+  let totalFocusMinutes = 0;
+  
+  Object.values(localData || {}).forEach((day: any) => {
+    if (day.goals) {
+      totalMissionsCompleted += day.goals.filter((g: any) => g.done).length;
+    }
+    if (day.studyLogs) {
+      totalFocusMinutes += day.studyLogs.reduce((acc: number, log: any) => acc + (parseInt(log.time) || 0), 0);
+    }
+  });
+
+  const focusHours = Math.floor(totalFocusMinutes / 60);
+
   return (
     <div className="space-y-8 animate-in pb-12 w-full max-w-2xl mx-auto">
       
@@ -29,6 +45,34 @@ export const UserPortfolio = ({ userName, gender, healthProfile, coreIdentity, s
       {/* Info Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         
+        {/* Performance Stats */}
+        <div className="bg-slate-900/60 p-6 rounded-[1.5rem] border border-white/5 space-y-6 md:col-span-2">
+          <div className="flex items-center gap-3 mb-4">
+            <Zap className="w-5 h-5 text-amber-400" />
+            <h3 className="text-sm font-mono uppercase text-white tracking-widest">Lifetime Performance</h3>
+          </div>
+          
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="bg-black/20 p-5 rounded-2xl border border-white/5 flex flex-col items-center justify-center text-center">
+              <CalendarDays className="w-6 h-6 text-indigo-400 mb-2" />
+              <span className="text-3xl font-black text-white">{totalDaysSynced}</span>
+              <span className="text-[10px] font-mono uppercase text-slate-500 tracking-widest mt-1">Days Synced</span>
+            </div>
+            
+            <div className="bg-black/20 p-5 rounded-2xl border border-white/5 flex flex-col items-center justify-center text-center">
+              <Target className="w-6 h-6 text-emerald-400 mb-2" />
+              <span className="text-3xl font-black text-white">{totalMissionsCompleted}</span>
+              <span className="text-[10px] font-mono uppercase text-slate-500 tracking-widest mt-1">Missions Cleared</span>
+            </div>
+            
+            <div className="bg-black/20 p-5 rounded-2xl border border-white/5 flex flex-col items-center justify-center text-center">
+              <Clock className="w-6 h-6 text-purple-400 mb-2" />
+              <span className="text-3xl font-black text-white">{focusHours}</span>
+              <span className="text-[10px] font-mono uppercase text-slate-500 tracking-widest mt-1">Focus Hours</span>
+            </div>
+          </div>
+        </div>
+
         {/* Identity & Work */}
         <div className="bg-slate-900/60 p-6 rounded-[1.5rem] border border-white/5 space-y-6">
           <div className="flex items-center gap-3 mb-4">

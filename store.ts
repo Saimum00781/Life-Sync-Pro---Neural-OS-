@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { AppMode, Mood } from './types';
 
 export interface Goal {
   id: string;
@@ -44,6 +45,13 @@ export interface Note {
   text: string;
 }
 
+export interface TargetBaseModeConfig {
+  isActive: boolean;
+  target: string;
+  deadline: string;
+  pillars: string[];
+}
+
 interface AppState {
   // User Profile
   userName: string;
@@ -52,6 +60,10 @@ interface AppState {
   onboardingComplete: boolean;
   healthProfile: { height: number; weight: number; workInfo?: string; location?: string };
   coreIdentity: string;
+  targetBaseMode: TargetBaseModeConfig;
+  appMode: AppMode;
+  modeExpiration: number | null;
+  dailyMood: Record<string, Mood>;
   
   // Settings
   thresholds: { leisureMax: number; productiveMin: number; offlineMin: number; sleepMin: number };
@@ -66,6 +78,9 @@ interface AppState {
   // Habits: date -> array of completed habit names
   habits: any[];
   habitCompletions: Record<string, string[]>;
+  
+  // Target Base Mode: date -> array of completed pillar indices (0, 1, 2)
+  pillarCompletions: Record<string, number[]>;
 
   // Actions
   setUserName: (name: string) => void;
@@ -90,6 +105,10 @@ interface AppState {
   
   setHabits: (habits: string[]) => void;
   toggleHabitCompletion: (date: string, habitName: string) => void;
+  togglePillarCompletion: (date: string, pillarIndex: number) => void;
+  setTargetBaseMode: (config: TargetBaseModeConfig) => void;
+  setAppMode: (mode: AppMode, expiration?: number | null) => void;
+  setDailyMood: (date: string, mood: Mood) => void;
 }
 
 export const useAppStore = create<AppState>()(
@@ -101,6 +120,10 @@ export const useAppStore = create<AppState>()(
       onboardingComplete: false,
       healthProfile: { height: 170, weight: 65, workInfo: '', location: '' },
       coreIdentity: 'I am a high-performance operator.',
+      targetBaseMode: { isActive: false, target: '', deadline: '', pillars: ['', '', ''] },
+      appMode: AppMode.NORMAL,
+      modeExpiration: null,
+      dailyMood: {},
       
       thresholds: { leisureMax: 120, productiveMin: 240, offlineMin: 120, sleepMin: 480 },
       segments: ['Deep Work', 'Admin', 'Health', 'Learning'],
@@ -112,6 +135,7 @@ export const useAppStore = create<AppState>()(
       
       habits: ['Morning Hydration', 'Deep Work Block', 'Movement', 'Evening Review'],
       habitCompletions: {},
+      pillarCompletions: {},
 
       setUserName: (userName) => set({ userName }),
       setGender: (gender) => set({ gender }),
@@ -142,6 +166,23 @@ export const useAppStore = create<AppState>()(
       removeNote: (id) => set((state) => ({ notes: state.notes.filter(n => n.id !== id) })),
       
       setHabits: (habits) => set({ habits }),
+      setTargetBaseMode: (targetBaseMode) => set({ targetBaseMode }),
+      setAppMode: (appMode, expiration = null) => set({ appMode, modeExpiration: expiration }),
+      setDailyMood: (date, mood) => set((state) => ({
+        dailyMood: { ...state.dailyMood, [date]: mood }
+      })),
+      togglePillarCompletion: (date: string, pillarIndex: number) => set((state) => {
+        const currentCompletions = state.pillarCompletions[date] || [];
+        const isCompleted = currentCompletions.includes(pillarIndex);
+        return {
+          pillarCompletions: {
+            ...state.pillarCompletions,
+            [date]: isCompleted 
+              ? currentCompletions.filter(i => i !== pillarIndex)
+              : [...currentCompletions, pillarIndex]
+          }
+        };
+      }),
       toggleHabitCompletion: (date, habitName) => set((state) => {
         const currentCompletions = state.habitCompletions[date] || [];
         const isCompleted = currentCompletions.includes(habitName);

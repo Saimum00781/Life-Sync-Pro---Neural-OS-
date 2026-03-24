@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { Clock, Save, Activity, Smartphone, Moon, Briefcase, Plus, Minus } from 'lucide-react';
+import { Clock, Save, Activity, Smartphone, Moon, Briefcase, Plus, Minus, ShieldAlert, Coffee } from 'lucide-react';
 import { SectionHeader } from './SectionHeader';
+import { AppMode } from '../../types';
 
-export const EnergyMatrix: React.FC<any> = ({ currentDay, updateDayData, thresholds, showSuccessToast }) => {
+export const EnergyMatrix: React.FC<any> = ({ currentDay, updateDayData, thresholds, targetBaseMode, showSuccessToast, appMode }) => {
   const currentDayStr = new Date().toISOString().split('T')[0];
   
   const [leisure, setLeisure] = useState(currentDay?.leisureDeviceTime || 0);
@@ -12,6 +13,9 @@ export const EnergyMatrix: React.FC<any> = ({ currentDay, updateDayData, thresho
 
   const totalMins = leisure + productive + offline + sleep;
   const remaining = 1440 - totalMins;
+
+  const isTarget = appMode === AppMode.TARGET;
+  const isVacation = appMode === AppMode.VACATION;
 
   const handleSave = () => {
     updateDayData(currentDayStr, {
@@ -88,15 +92,39 @@ export const EnergyMatrix: React.FC<any> = ({ currentDay, updateDayData, thresho
   return (
     <div className="space-y-6 animate-in pb-24 w-full max-w-md mx-auto">
       <SectionHeader 
-        title="Chronos Matrix" 
+        title={isTarget ? "Target Matrix" : isVacation ? "Recovery Matrix" : "Chronos Matrix"} 
         subtitle="24-Hour Distribution" 
-        infoText="Allocate your 24 hours. Quick-log your activities to maintain an accurate neural map of your day."
-        icon={Clock}
-        colorClass="text-indigo-400"
+        infoText={isTarget ? "Strictly allocate your 24 hours to maximize target output." : isVacation ? "Allocate time for rest, healing, and spiritual growth." : "Allocate your 24 hours. Quick-log your activities to maintain an accurate neural map of your day."}
+        icon={isTarget ? ShieldAlert : isVacation ? Coffee : Clock}
+        colorClass={isTarget ? "text-red-400" : isVacation ? "text-emerald-400" : "text-indigo-400"}
       />
 
-      <div className="bg-slate-900 p-6 rounded-[2rem] border border-white/5 shadow-2xl relative overflow-hidden">
-        <div className="absolute -right-10 -top-10 w-40 h-40 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
+      {isTarget && targetBaseMode && (
+        <div className="bg-red-950/40 p-4 rounded-2xl border border-red-500/30 mb-6 flex items-start gap-3 shadow-[0_0_15px_rgba(239,68,68,0.1)]">
+          <div className="w-8 h-8 rounded-lg bg-red-500/20 flex items-center justify-center text-red-500 shrink-0 mt-0.5">
+            <ShieldAlert size={16} />
+          </div>
+          <div>
+            <h3 className="text-[10px] font-mono uppercase tracking-widest text-red-400 mb-1">Target Base Mode</h3>
+            <p className="text-sm font-bold text-white leading-tight">Every minute logged must serve: {targetBaseMode.target}</p>
+          </div>
+        </div>
+      )}
+
+      {isVacation && (
+        <div className="bg-emerald-950/40 p-4 rounded-2xl border border-emerald-500/30 mb-6 flex items-start gap-3 shadow-[0_0_15px_rgba(16,185,129,0.1)]">
+          <div className="w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center text-emerald-500 shrink-0 mt-0.5">
+            <Coffee size={16} />
+          </div>
+          <div>
+            <h3 className="text-[10px] font-mono uppercase tracking-widest text-emerald-400 mb-1">Grace Mode Active</h3>
+            <p className="text-sm font-bold text-white leading-tight">Prioritize sleep and offline recovery.</p>
+          </div>
+        </div>
+      )}
+
+      <div className={`bg-slate-900 p-6 rounded-[2rem] border border-white/5 shadow-2xl relative overflow-hidden ${isTarget ? 'border-red-500/20' : isVacation ? 'border-emerald-500/20' : ''}`}>
+        <div className={`absolute -right-10 -top-10 w-40 h-40 rounded-full blur-3xl pointer-events-none ${isTarget ? 'bg-red-500/10' : isVacation ? 'bg-emerald-500/10' : 'bg-indigo-500/10'}`} />
         
         <div className="flex justify-between items-end mb-6 relative z-10">
           <div>
@@ -128,14 +156,14 @@ export const EnergyMatrix: React.FC<any> = ({ currentDay, updateDayData, thresho
 
       <div className="space-y-3">
         {renderControl("Leisure Device", leisure, setLeisure, Smartphone, 'leisure')}
-        {renderControl("Productive Device", productive, setProductive, Briefcase, 'productive')}
+        {!isVacation && renderControl("Productive Device", productive, setProductive, Briefcase, 'productive')}
         {renderControl("Offline Active", offline, setOffline, Activity, 'offline')}
         {renderControl("Sleep / Recovery", sleep, setSleep, Moon, 'sleep')}
       </div>
 
       <button 
         onClick={handleSave}
-        className="w-full py-4 bg-indigo-600 text-white rounded-[1.5rem] font-mono uppercase text-[10px] tracking-widest hover:bg-indigo-500 transition-all flex items-center justify-center gap-2 shadow-xl shadow-indigo-500/20 active:scale-95"
+        className={`w-full py-4 text-white rounded-[1.5rem] font-mono uppercase text-[10px] tracking-widest transition-all flex items-center justify-center gap-2 shadow-xl active:scale-95 ${isTarget ? 'bg-red-600 hover:bg-red-500 shadow-red-500/20' : isVacation ? 'bg-emerald-600 hover:bg-emerald-500 shadow-emerald-500/20' : 'bg-indigo-600 hover:bg-indigo-500 shadow-indigo-500/20'}`}
       >
         <Save size={14} /> Sync Matrix
       </button>

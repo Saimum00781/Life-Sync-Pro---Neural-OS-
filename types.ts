@@ -28,9 +28,24 @@ export enum AppState {
 }
 
 export enum Tab {
-  TODAY = 'today',
-  UPCOMING = 'upcoming',
-  BROWSE = 'browse'
+  DAILY = 'daily',
+  STATS = 'stats',
+  DIGITAL = 'digital',
+  HABIT = 'habit'
+}
+
+export enum AppMode {
+  NORMAL = 'normal',
+  TARGET = 'target',
+  VACATION = 'vacation'
+}
+
+export enum Mood {
+  GRATEFUL = 'grateful',
+  ENERGETIC = 'energetic',
+  SAD = 'sad',
+  ANGRY = 'angry',
+  DEPRESSED = 'depressed'
 }
 
 export interface UserProfile {

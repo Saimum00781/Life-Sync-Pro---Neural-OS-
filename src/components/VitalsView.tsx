@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { Heart, Droplet, Moon, Activity, Save, Scale, Footprints, Flame } from 'lucide-react';
+import { Heart, Droplet, Moon, Activity, Save, Scale, Footprints, Flame, ShieldAlert, Coffee } from 'lucide-react';
 import { SectionHeader } from './SectionHeader';
+import { AppMode } from '../../types';
 
-export const VitalsView = ({ currentDay, updateDayData, healthProfile, setHealthProfile, showSuccessToast }: any) => {
+export const VitalsView = ({ currentDay, updateDayData, healthProfile, setHealthProfile, targetBaseMode, showSuccessToast, appMode }: any) => {
   const currentDayStr = new Date().toISOString().split('T')[0];
   const [height, setHeight] = useState(healthProfile?.height || 170);
   const [weight, setWeight] = useState(healthProfile?.weight || 65);
@@ -23,6 +24,9 @@ export const VitalsView = ({ currentDay, updateDayData, healthProfile, setHealth
   if (parseFloat(bmi) < 18.5) { bmiStatus = "Underweight"; bmiColor = "text-orange-400"; }
   else if (parseFloat(bmi) > 25) { bmiStatus = "Overweight"; bmiColor = "text-rose-400"; }
 
+  const isTarget = appMode === AppMode.TARGET;
+  const isVacation = appMode === AppMode.VACATION;
+
   const saveVitals = () => {
     setHealthProfile({ ...healthProfile, height, weight });
     updateDayData(currentDayStr, { waterIntake: water, sleepTime: sleep, steps, caloriesEaten, caloriesBurned });
@@ -32,12 +36,36 @@ export const VitalsView = ({ currentDay, updateDayData, healthProfile, setHealth
   return (
     <div className="space-y-6 animate-in w-full max-w-md mx-auto">
       <SectionHeader 
-        title="Biometrics & Vitals" 
+        title={isTarget ? "Target Base Biometrics" : isVacation ? "Recovery Biometrics" : "Biometrics & Vitals"} 
         subtitle="Physical Integrity" 
-        infoText="Monitor your physical vessel. BMI, hydration, and recovery metrics are essential for optimal neural performance."
-        icon={Heart}
-        colorClass="text-rose-500"
+        infoText={isTarget ? `Optimize your physical vessel to achieve: ${targetBaseMode?.target}` : isVacation ? "Monitor hydration and sleep to maximize recovery and healing." : "Monitor your physical vessel. BMI, hydration, and recovery metrics are essential for optimal neural performance."}
+        icon={isTarget ? ShieldAlert : isVacation ? Coffee : Heart}
+        colorClass={isTarget ? "text-red-500" : isVacation ? "text-emerald-500" : "text-rose-500"}
       />
+
+      {isTarget && targetBaseMode && (
+        <div className="bg-red-950/40 p-4 rounded-2xl border border-red-500/30 mb-6 flex items-start gap-3 shadow-[0_0_15px_rgba(239,68,68,0.1)]">
+          <div className="w-8 h-8 rounded-lg bg-red-500/20 flex items-center justify-center text-red-500 shrink-0 mt-0.5">
+            <ShieldAlert size={16} />
+          </div>
+          <div>
+            <h3 className="text-[10px] font-mono uppercase tracking-widest text-red-400 mb-1">Target Base Mode</h3>
+            <p className="text-sm font-bold text-white leading-tight">Physical optimization is mandatory for target acquisition.</p>
+          </div>
+        </div>
+      )}
+
+      {isVacation && (
+        <div className="bg-emerald-950/40 p-4 rounded-2xl border border-emerald-500/30 mb-6 flex items-start gap-3 shadow-[0_0_15px_rgba(16,185,129,0.1)]">
+          <div className="w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center text-emerald-500 shrink-0 mt-0.5">
+            <Coffee size={16} />
+          </div>
+          <div>
+            <h3 className="text-[10px] font-mono uppercase tracking-widest text-emerald-400 mb-1">Grace Mode Active</h3>
+            <p className="text-sm font-bold text-white leading-tight">Prioritize hydration and sleep for maximum recovery.</p>
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-2 gap-4">
         <div className="bg-white/5 p-4 rounded-2xl border border-white/10 space-y-4">
@@ -180,7 +208,7 @@ export const VitalsView = ({ currentDay, updateDayData, healthProfile, setHealth
 
       <button 
         onClick={saveVitals}
-        className="w-full py-4 bg-rose-500/20 text-rose-400 border border-rose-500/30 rounded-xl font-mono uppercase text-[10px] tracking-widest hover:bg-rose-500/30 transition-all flex items-center justify-center gap-2 shadow-lg active:scale-95"
+        className={`w-full py-4 border rounded-xl font-mono uppercase text-[10px] tracking-widest transition-all flex items-center justify-center gap-2 shadow-lg active:scale-95 ${isTarget ? 'bg-red-500/20 text-red-400 border-red-500/30 hover:bg-red-500/30' : isVacation ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/30' : 'bg-rose-500/20 text-rose-400 border-rose-500/30 hover:bg-rose-500/30'}`}
       >
         <Save size={14} /> Sync Vitals
       </button>

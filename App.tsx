@@ -5,9 +5,9 @@ import {
   Moon, Trophy, Sparkles, Target, Activity, Cpu, Check, Settings2, Clock, 
   CalendarDays, ChevronRight, Bot, ChevronLeft, Timer, StickyNote, Flame, 
   X, ArrowRight, Volume2, VolumeX, Tag, Bell, Menu, User, Award, TrendingUp,
-  Info, ShieldCheck, Palette, Smile, Heart, Coffee, Book, Send
+  Info, ShieldCheck, Palette, Smile, Heart, Coffee, Book, Send, ShieldAlert
 } from 'lucide-react';
-import { AppState, Tab, DayData, Goal } from './types';
+import { AppState, Tab, DayData, Goal, AppMode, Mood } from './types';
 import { askAIArchitectStream } from './geminiService';
 import { THEMES } from './src/constants';
 import { TodayView } from './src/components/TodayView';
@@ -19,8 +19,11 @@ import { CountdownView } from './src/components/CountdownView';
 import { NoteView } from './src/components/NoteView';
 import { ProfileView } from './src/components/ProfileView';
 import { UserPortfolio } from './src/components/UserPortfolio';
+import { TargetBaseModeView } from './src/components/TargetBaseModeView';
 import { AIModal } from './src/components/AIModal';
 import { VitalsView } from './src/components/VitalsView';
+import { MoodAnchor } from './src/components/MoodAnchor';
+import { ModeSwitcher } from './src/components/ModeSwitcher';
 
 import { useAppStore } from './store';
 
@@ -28,12 +31,14 @@ const App: React.FC = () => {
   const { 
     userName, setUserName, gender, setGender, themeName, setThemeName, onboardingComplete, completeOnboarding,
     thresholds, setThresholds, segments, setSegments, localData, updateDayData, habits, setHabits,
-    healthProfile, setHealthProfile, coreIdentity, setCoreIdentity, habitStacks, setHabitStacks
+    healthProfile, setHealthProfile, coreIdentity, setCoreIdentity, habitStacks, setHabitStacks,
+    targetBaseMode, setTargetBaseMode, pillarCompletions, togglePillarCompletion,
+    appMode, setAppMode, dailyMood, setDailyMood, modeExpiration
   } = useAppStore();
 
   const [appState, setAppState] = useState<AppState>(onboardingComplete ? AppState.DASHBOARD : AppState.WELCOME);
   const [onboardingStep, setOnboardingStep] = useState(0); 
-  const [activeTab, setActiveTab] = useState<Tab>(Tab.TODAY);
+  const [activeTab, setActiveTab] = useState<Tab>(Tab.DAILY);
   const [overlayView, setOverlayView] = useState<string | null>(null);
   const [notifications, setNotifications] = useState<{id: string, text: string, read: boolean}[]>([]);
   const [selectedCalendarDate, setSelectedCalendarDate] = useState(new Date().toISOString().split('T')[0]);
@@ -71,6 +76,18 @@ const App: React.FC = () => {
     applyTheme(themeName);
   }, [themeName]);
 
+  useEffect(() => {
+    if (modeExpiration && Date.now() > modeExpiration) {
+      setAppMode(AppMode.NORMAL, null);
+    }
+    const interval = setInterval(() => {
+      if (modeExpiration && Date.now() > modeExpiration) {
+        setAppMode(AppMode.NORMAL, null);
+      }
+    }, 60000); // Check every minute
+    return () => clearInterval(interval);
+  }, [modeExpiration, setAppMode]);
+
   const applyTheme = (name: string) => {
     const t = THEMES[name];
     if (!t) return;
@@ -99,6 +116,7 @@ const App: React.FC = () => {
 
   const currentDayStr = new Date().toISOString().split('T')[0];
   const currentDay = localData[currentDayStr] || { goals: [], deviceTime: '0', studyLogs: [], leisureDeviceTime: 0, productiveDeviceTime: 0, offlineTime: 0, sleepTime: 0, waterIntake: 0 };
+  const currentMood = dailyMood[currentDayStr] || null;
 
   if (appState === AppState.WELCOME) {
     if (onboardingStep === 0) {
@@ -194,12 +212,31 @@ const App: React.FC = () => {
 
   return (
     <div className="flex h-screen overflow-hidden text-[var(--text-main)] bg-[var(--app-bg)] transition-colors duration-500 font-sans">
+      {appMode === AppMode.TARGET && (
+        <style>{`
+          :root {
+            --accent-primary: #ef4444 !important;
+            --card-bg: #1a0505 !important;
+            --app-bg: #0a0000 !important;
+          }
+        `}</style>
+      )}
+      {appMode === AppMode.VACATION && (
+        <style>{`
+          :root {
+            --accent-primary: #10b981 !important;
+            --card-bg: #022c22 !important;
+            --app-bg: #064e3b !important;
+          }
+        `}</style>
+      )}
       <Sidebar 
         isOpen={showSidebar} 
         onClose={() => setShowSidebar(false)} 
         onSelectOverlay={setOverlayView}
         userName={userName}
         gender={gender}
+        targetBaseMode={targetBaseMode}
       />
 
       <div className="flex-1 flex flex-col relative overflow-hidden max-w-5xl mx-auto w-full">
@@ -231,6 +268,17 @@ const App: React.FC = () => {
         </header>
 
         <main className="flex-1 overflow-y-auto custom-scroll pb-24 px-6 pt-2">
+          {!overlayView && (
+            <>
+              <ModeSwitcher appMode={appMode} setAppMode={setAppMode} modeExpiration={modeExpiration} />
+              <MoodAnchor 
+                currentMood={currentMood} 
+                setMood={(m) => setDailyMood(currentDayStr, m)} 
+                appMode={appMode} 
+                setAppMode={setAppMode} 
+              />
+            </>
+          )}
           {overlayView ? (
             <OverlayRouter 
               view={overlayView} 
@@ -260,7 +308,12 @@ const App: React.FC = () => {
               setCoreIdentity={setCoreIdentity}
               habitStacks={habitStacks}
               setHabitStacks={setHabitStacks}
+              targetBaseMode={targetBaseMode}
+              setTargetBaseMode={setTargetBaseMode}
               showSuccessToast={showSuccessToast}
+              appMode={appMode}
+              setAppMode={setAppMode}
+              currentMood={currentMood}
             />
           ) : (
             <TabRouter 
@@ -272,15 +325,20 @@ const App: React.FC = () => {
               thresholds={thresholds}
               habits={habits}
               segments={segments}
+              targetBaseMode={targetBaseMode}
+              pillarCompletions={pillarCompletions}
+              togglePillarCompletion={togglePillarCompletion}
               showSuccessToast={showSuccessToast}
+              appMode={appMode}
             />
           )}
         </main>
 
         <nav className="fixed bottom-0 left-0 right-0 md:left-auto md:right-auto md:w-full md:max-w-5xl bg-[var(--card-bg)]/90 backdrop-blur-xl border-t border-white/5 px-6 pb-6 pt-4 flex justify-around items-center z-50 shadow-[0_-10px_40px_rgba(0,0,0,0.3)]">
-          <NavBtn icon={Target} label="Daily" active={activeTab === Tab.TODAY && !overlayView} onClick={() => {setActiveTab(Tab.TODAY); setOverlayView(null);}} />
-          <NavBtn icon={Cpu} label="Stats" active={activeTab === Tab.UPCOMING && !overlayView} onClick={() => {setActiveTab(Tab.UPCOMING); setOverlayView(null);}} />
-          <NavBtn icon={Activity} label="Digital" active={activeTab === Tab.BROWSE && !overlayView} onClick={() => {setActiveTab(Tab.BROWSE); setOverlayView(null);}} />
+          <NavBtn icon={Target} label="Daily" active={activeTab === Tab.DAILY && !overlayView} onClick={() => {setActiveTab(Tab.DAILY); setOverlayView(null);}} />
+          <NavBtn icon={Cpu} label="Stats" active={activeTab === Tab.STATS && !overlayView} onClick={() => {setActiveTab(Tab.STATS); setOverlayView(null);}} />
+          <NavBtn icon={Activity} label="Digital" active={activeTab === Tab.DIGITAL && !overlayView} onClick={() => {setActiveTab(Tab.DIGITAL); setOverlayView(null);}} />
+          <NavBtn icon={Flame} label="Habit" active={activeTab === Tab.HABIT && !overlayView} onClick={() => {setActiveTab(Tab.HABIT); setOverlayView(null);}} />
         </nav>
         
         {promptConfig && promptConfig.isOpen && (
@@ -334,11 +392,11 @@ const PromptModal: React.FC<{ message: string; defaultValue?: string; onSubmit: 
   );
 };
 
-const Sidebar: React.FC<any> = ({ isOpen, onClose, userName, gender, onSelectOverlay }) => (
+const Sidebar: React.FC<any> = ({ isOpen, onClose, userName, gender, targetBaseMode, onSelectOverlay }) => (
   <>
     <div className={`fixed inset-0 bg-black/60 backdrop-blur-md z-[60] transition-all duration-300 ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`} onClick={onClose} />
     <aside className={`fixed top-0 left-0 h-full w-[80%] max-w-[280px] bg-[var(--card-bg)] z-[70] transform transition-transform duration-300 border-r border-white/5 ${isOpen ? 'translate-x-0' : '-translate-x-full'} shadow-2xl`}>
-      <div className="flex flex-col h-full p-6">
+      <div className="flex flex-col h-full p-6 overflow-y-auto">
         <div className="bg-white/5 p-6 rounded-[2rem] mb-6 flex flex-col items-center gap-4 border border-white/5 text-center shadow-lg">
           <div className={`w-16 h-16 rounded-2xl flex items-center justify-center text-3xl shadow-xl ${gender === 'boy' ? 'bg-gradient-to-br from-teal-500 to-emerald-800' : gender === 'girl' ? 'bg-gradient-to-br from-rose-500 to-pink-800' : 'bg-gradient-to-br from-[var(--accent-primary)] to-indigo-800'}`}>
             {gender === 'boy' ? '👨‍🚀' : gender === 'girl' ? '👩‍🚀' : '👤'}
@@ -357,8 +415,11 @@ const Sidebar: React.FC<any> = ({ isOpen, onClose, userName, gender, onSelectOve
           </div>
         </div>
         <div className="space-y-1 flex-1">
+          <button onClick={() => { onSelectOverlay('targetBaseMode'); onClose(); }} className={`w-full flex items-center gap-3 p-3.5 rounded-xl transition-all group active:scale-95 border ${targetBaseMode?.isActive ? 'bg-red-500/20 text-red-500 border-red-500/30' : 'hover:bg-red-500/10 text-slate-400 hover:text-red-400 border-transparent hover:border-red-500/20'}`}>
+            <ShieldAlert size={14} className={targetBaseMode?.isActive ? 'text-red-500' : 'group-hover:text-red-400 transition-all'} />
+            <span className="text-[10px] font-mono uppercase tracking-widest">Target Base Mode</span>
+          </button>
           <SideItem icon={Timer} label="Focus Chamber" onClick={() => { onSelectOverlay('focus'); onClose(); }} />
-          <SideItem icon={Flame} label="Habit Sync" onClick={() => { onSelectOverlay('habits'); onClose(); }} />
           <SideItem icon={Clock} label="Countdown" onClick={() => { onSelectOverlay('countdown'); onClose(); }} />
           <SideItem icon={StickyNote} label="Neural Notes" onClick={() => { onSelectOverlay('notes'); onClose(); }} />
           <SideItem icon={Heart} label="Biometrics" onClick={() => { onSelectOverlay('vitals'); onClose(); }} />
@@ -405,11 +466,12 @@ const NotificationPanel: React.FC<any> = ({ notifications, onClose, setNotificat
 
 // --- TAB ROUTER ---
 
-const TabRouter: React.FC<any> = ({ tab, currentDay, updateDayData, localData, userName, thresholds, habits, segments, showSuccessToast }) => {
+const TabRouter: React.FC<any> = ({ tab, currentDay, updateDayData, localData, userName, thresholds, habits, segments, targetBaseMode, pillarCompletions, togglePillarCompletion, showSuccessToast, appMode, dailyMood }) => {
   switch (tab) {
-    case Tab.TODAY: return <TodayView data={currentDay.goals} updateDayData={updateDayData} showSuccessToast={showSuccessToast} />;
-    case Tab.UPCOMING: return <ProductivityHub data={localData} userName={userName} />;
-    case Tab.BROWSE: return <EnergyMatrix currentDay={currentDay} updateDayData={updateDayData} thresholds={thresholds} segments={segments} showSuccessToast={showSuccessToast} />;
+    case Tab.DAILY: return <TodayView data={currentDay.goals} updateDayData={updateDayData} targetBaseMode={targetBaseMode} pillarCompletions={pillarCompletions} togglePillarCompletion={togglePillarCompletion} showSuccessToast={showSuccessToast} appMode={appMode} />;
+    case Tab.STATS: return <ProductivityHub data={localData} userName={userName} targetBaseMode={targetBaseMode} appMode={appMode} dailyMood={dailyMood} />;
+    case Tab.DIGITAL: return <EnergyMatrix currentDay={currentDay} updateDayData={updateDayData} thresholds={thresholds} segments={segments} targetBaseMode={targetBaseMode} showSuccessToast={showSuccessToast} appMode={appMode} />;
+    case Tab.HABIT: return <HabitView habits={habits} currentDay={currentDay} updateDayData={updateDayData} appMode={appMode} targetBaseMode={targetBaseMode} />;
     default: return null;
   }
 };
@@ -418,14 +480,14 @@ const TabRouter: React.FC<any> = ({ tab, currentDay, updateDayData, localData, u
 
 const OverlayRouter: React.FC<any> = (props) => {
   switch (props.view) {
-    case 'focus': return <FocusView currentDay={props.currentDay} updateDayData={props.updateDayData} showSuccessToast={props.showSuccessToast} />;
-    case 'habits': return <HabitView {...props} />;
+    case 'focus': return <FocusView currentDay={props.currentDay} updateDayData={props.updateDayData} targetBaseMode={props.targetBaseMode} showSuccessToast={props.showSuccessToast} appMode={props.appMode} />;
     case 'countdown': return <CountdownView {...props} />;
-    case 'notes': return <NoteView customPrompt={props.customPrompt} showSuccessToast={props.showSuccessToast} />;
-    case 'vitals': return <VitalsView currentDay={props.currentDay} updateDayData={props.updateDayData} healthProfile={props.healthProfile} setHealthProfile={props.setHealthProfile} showSuccessToast={props.showSuccessToast} />;
+    case 'notes': return <NoteView customPrompt={props.customPrompt} targetBaseMode={props.targetBaseMode} showSuccessToast={props.showSuccessToast} appMode={props.appMode} />;
+    case 'vitals': return <VitalsView currentDay={props.currentDay} updateDayData={props.updateDayData} healthProfile={props.healthProfile} setHealthProfile={props.setHealthProfile} targetBaseMode={props.targetBaseMode} showSuccessToast={props.showSuccessToast} appMode={props.appMode} />;
     case 'profile': return <ProfileView {...props} />;
     case 'portfolio': return <UserPortfolio {...props} />;
-    case 'oracle': return <AIModal onClose={props.onClose} coreIdentity={props.coreIdentity} habits={props.habits} localData={props.localData} />;
+    case 'targetBaseMode': return <TargetBaseModeView {...props} setAppMode={props.setAppMode} />;
+    case 'oracle': return <AIModal onClose={props.onClose} coreIdentity={props.coreIdentity} habits={props.habits} localData={props.localData} targetBaseMode={props.targetBaseMode} appMode={props.appMode} currentMood={props.currentMood} />;
     default: return null;
   }
 };

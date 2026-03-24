@@ -1,12 +1,16 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Check, Trash2, Bot, Sparkles, Flame } from 'lucide-react';
+import { Check, Trash2, Bot, Sparkles, Flame, Plus, ShieldAlert, Coffee } from 'lucide-react';
 import { SectionHeader } from './SectionHeader';
 import { askAIArchitectStream } from '../../geminiService';
+import { AppMode } from '../../types';
 
-export const HabitView = ({ habits, currentDay, updateDayData, setHabits, customPrompt, localData, showSuccessToast }: any) => {
+export const HabitView = ({ habits, currentDay, updateDayData, setHabits, customPrompt, localData, targetBaseMode, showSuccessToast, appMode }: any) => {
   const currentDayStr = new Date().toISOString().split('T')[0];
   const completed = currentDay?.habits || [];
   const [isGenerating, setIsGenerating] = useState(false);
+  const [newHabitText, setNewHabitText] = useState('');
+  const [newHabitTime, setNewHabitTime] = useState('morning');
+  const [showAddForm, setShowAddForm] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -62,6 +66,19 @@ export const HabitView = ({ habits, currentDay, updateDayData, setHabits, custom
     setHabits(normalizedHabits.filter((h: any) => h.id !== id));
   };
 
+  const addManualHabit = () => {
+    if (!newHabitText.trim()) return;
+    const newHabit = {
+      id: newHabitText + Date.now(),
+      text: newHabitText,
+      time: newHabitTime
+    };
+    setHabits([...normalizedHabits, newHabit]);
+    setNewHabitText('');
+    setShowAddForm(false);
+    if (showSuccessToast) showSuccessToast("HABIT ADDED");
+  };
+
   const blocks = ['morning', 'afternoon', 'evening'];
   const completedCount = completed.length;
   const totalCount = normalizedHabits.length;
@@ -89,17 +106,44 @@ export const HabitView = ({ habits, currentDay, updateDayData, setHabits, custom
     if (streak > 365) break;
   }
 
+  const isTarget = appMode === AppMode.TARGET;
+  const isVacation = appMode === AppMode.VACATION;
+
   return (
     <div className="space-y-6 animate-in w-full max-w-md mx-auto">
       <SectionHeader 
-        title="Neural Reprogramming" 
+        title={isTarget ? "Target Base Reprogramming" : isVacation ? "Recovery Habits" : "Neural Reprogramming"} 
         subtitle={`${completedCount}/${totalCount} Loops Executed`} 
-        infoText="Execute daily loops to forge permanent behavioral pathways. Organized by time blocks for optimal cognitive load."
-        icon={Sparkles}
-        colorClass="text-emerald-500"
+        infoText={isTarget ? `Execute daily loops to forge permanent behavioral pathways strictly aligned with: ${targetBaseMode?.target}` : isVacation ? "Focus on rest, recovery, and spiritual rejuvenation." : "Execute daily loops to forge permanent behavioral pathways. Organized by time blocks for optimal cognitive load."}
+        icon={isTarget ? ShieldAlert : isVacation ? Coffee : Sparkles}
+        colorClass={isTarget ? "text-red-500" : isVacation ? "text-emerald-500" : "text-emerald-500"}
       />
 
-      <div className="flex items-center justify-between bg-white/5 p-4 rounded-[1.5rem] border border-white/10">
+      {isTarget && targetBaseMode && (
+        <div className="bg-red-950/40 p-4 rounded-2xl border border-red-500/30 mb-6 flex items-start gap-3 shadow-[0_0_15px_rgba(239,68,68,0.1)]">
+          <div className="w-8 h-8 rounded-lg bg-red-500/20 flex items-center justify-center text-red-500 shrink-0 mt-0.5">
+            <ShieldAlert size={16} />
+          </div>
+          <div>
+            <h3 className="text-[10px] font-mono uppercase tracking-widest text-red-400 mb-1">Target Base Mode</h3>
+            <p className="text-sm font-bold text-white leading-tight">Every habit must serve: {targetBaseMode.target}</p>
+          </div>
+        </div>
+      )}
+
+      {isVacation && (
+        <div className="bg-emerald-950/40 p-4 rounded-2xl border border-emerald-500/30 mb-6 flex items-start gap-3 shadow-[0_0_15px_rgba(16,185,129,0.1)]">
+          <div className="w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center text-emerald-500 shrink-0 mt-0.5">
+            <Coffee size={16} />
+          </div>
+          <div>
+            <h3 className="text-[10px] font-mono uppercase tracking-widest text-emerald-400 mb-1">Grace Mode Active</h3>
+            <p className="text-sm font-bold text-white leading-tight">Work habits are paused. Focus on healing and rest.</p>
+          </div>
+        </div>
+      )}
+
+      <div className={`flex items-center justify-between bg-white/5 p-4 rounded-[1.5rem] border ${isTarget ? 'border-red-500/20' : isVacation ? 'border-emerald-500/20' : 'border-white/10'}`}>
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-lg bg-orange-500/20 flex items-center justify-center text-orange-500">
             <Flame size={14} />
@@ -109,10 +153,40 @@ export const HabitView = ({ habits, currentDay, updateDayData, setHabits, custom
             <p className="text-sm font-mono text-white">{streak} Days</p>
           </div>
         </div>
-        <button onClick={generateHabits} disabled={isGenerating} className="flex items-center gap-1.5 px-3 py-2 bg-indigo-600/20 text-indigo-400 rounded-lg text-[8px] font-mono uppercase tracking-widest hover:bg-indigo-600/30 transition-all disabled:opacity-50 border border-indigo-500/20">
-          <Bot size={12} /> {isGenerating ? 'Synthesizing...' : 'AI Generate'}
-        </button>
+        <div className="flex gap-2">
+          <button onClick={() => setShowAddForm(!showAddForm)} className="flex items-center gap-1.5 px-3 py-2 bg-white/5 text-slate-300 rounded-lg text-[8px] font-mono uppercase tracking-widest hover:bg-white/10 transition-all border border-white/10">
+            <Plus size={12} /> Add
+          </button>
+          <button onClick={generateHabits} disabled={isGenerating} className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-[8px] font-mono uppercase tracking-widest transition-all disabled:opacity-50 border ${isTarget ? 'bg-red-600/20 text-red-400 hover:bg-red-600/30 border-red-500/20' : isVacation ? 'bg-emerald-600/20 text-emerald-400 hover:bg-emerald-600/30 border-emerald-500/20' : 'bg-indigo-600/20 text-indigo-400 hover:bg-indigo-600/30 border-indigo-500/20'}`}>
+            <Bot size={12} /> {isGenerating ? 'Synthesizing...' : 'AI Generate'}
+          </button>
+        </div>
       </div>
+
+      {showAddForm && (
+        <div className="bg-slate-900/80 p-4 rounded-2xl border border-white/10 space-y-3 animate-in fade-in slide-in-from-top-2">
+          <input 
+            value={newHabitText}
+            onChange={e => setNewHabitText(e.target.value)}
+            placeholder="Enter new habit..."
+            className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-3 text-xs font-mono text-white outline-none focus:border-indigo-500/50"
+          />
+          <div className="flex gap-2">
+            <select 
+              value={newHabitTime}
+              onChange={e => setNewHabitTime(e.target.value)}
+              className="bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs font-mono text-slate-300 outline-none focus:border-indigo-500/50"
+            >
+              <option value="morning">Morning</option>
+              <option value="afternoon">Afternoon</option>
+              <option value="evening">Evening</option>
+            </select>
+            <button onClick={addManualHabit} className={`flex-1 text-white rounded-xl text-[10px] font-mono uppercase tracking-widest transition-all ${isTarget ? 'bg-red-600 hover:bg-red-500' : isVacation ? 'bg-emerald-600 hover:bg-emerald-500' : 'bg-indigo-600 hover:bg-indigo-500'}`}>
+              Save Habit
+            </button>
+          </div>
+        </div>
+      )}
 
       <div className="space-y-6">
         {blocks.map(block => {
@@ -125,15 +199,15 @@ export const HabitView = ({ habits, currentDay, updateDayData, setHabits, custom
               {blockHabits.map((h: any) => {
                 const isDone = completed.includes(h.id);
                 return (
-                  <div key={h.id} className="relative group">
-                    <button onClick={() => toggle(h.id)} className={`w-full p-3.5 rounded-xl border transition-all flex items-center justify-between active:scale-[0.98] ${isDone ? 'bg-emerald-600/10 border-emerald-500/30 text-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.1)]' : 'bg-slate-900 border-white/5 text-slate-300 hover:border-white/10 shadow-lg'}`}>
-                      <span className="text-xs font-mono tracking-wide">{h.text}</span>
-                      <div className={`w-4 h-4 rounded border flex items-center justify-center transition-all ${isDone ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-slate-700 bg-white/5 group-hover:border-slate-500'}`}>
+                  <div key={h.id} className="relative group flex items-center gap-2">
+                    <button onClick={() => toggle(h.id)} className={`flex-1 p-3.5 rounded-xl border transition-all flex items-center justify-between active:scale-[0.98] ${isDone ? 'bg-emerald-600/10 border-emerald-500/30 text-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.1)]' : 'bg-slate-900 border-white/5 text-slate-300 hover:border-white/10 shadow-lg'}`}>
+                      <span className="text-xs font-mono tracking-wide text-left">{h.text}</span>
+                      <div className={`w-4 h-4 rounded border flex items-center justify-center transition-all flex-shrink-0 ml-3 ${isDone ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-slate-700 bg-white/5 group-hover:border-slate-500'}`}>
                         {isDone && <Check size={10} strokeWidth={3} />}
                       </div>
                     </button>
-                    <button onClick={() => removeHabit(h.id)} className="absolute -right-2 -top-2 w-6 h-6 bg-rose-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-lg hover:scale-110">
-                      <Trash2 size={10} />
+                    <button onClick={() => removeHabit(h.id)} className="w-10 h-10 bg-rose-500/10 text-rose-400 rounded-xl flex items-center justify-center opacity-100 md:opacity-0 group-hover:opacity-100 transition-all hover:bg-rose-500 hover:text-white flex-shrink-0">
+                      <Trash2 size={14} />
                     </button>
                   </div>
                 );
