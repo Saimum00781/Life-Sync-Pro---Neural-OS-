@@ -116,7 +116,7 @@ const App: React.FC = () => {
   const saveProfile = (name: string, arch: 'optimizer' | 'balancer') => {
     setUserName(name);
     setArchetype(arch);
-    setThemeName(arch === 'optimizer' ? 'Midnight' : 'Sage Green');
+    setThemeName('Rainy');
     
     // Set baseline health targets based on archetype
     if (arch === 'optimizer') {
@@ -146,8 +146,8 @@ const App: React.FC = () => {
           <div className="w-full max-w-sm bg-[var(--card-bg)] rounded-[2rem] shadow-2xl relative border border-white/5 flex flex-col p-8 text-center animate-in overflow-hidden">
             <div className="absolute top-0 right-0 p-8 opacity-5"><Cpu size={120} /></div>
             <div className="mt-4 space-y-2 relative z-10">
-              <div className="w-16 h-16 bg-[var(--accent-primary)]/20 rounded-2xl mx-auto flex items-center justify-center mb-6 border border-[var(--accent-primary)]/30 shadow-[0_0_30px_rgba(var(--accent-primary-rgb),0.2)]">
-                <Activity size={32} className="text-[var(--accent-primary)]" />
+              <div className="w-20 h-20 mx-auto flex items-center justify-center mb-6 drop-shadow-[0_0_15px_rgba(var(--accent-primary-rgb),0.3)]">
+                <img src="/icon.svg" alt="Life Sync Pro Logo" className="w-full h-full object-contain" />
               </div>
               <h1 className="text-3xl font-mono text-[var(--text-main)] tracking-tighter uppercase drop-shadow-lg">LIFE SYNC</h1>
               <p className="text-[var(--text-main)] opacity-60 text-[10px] font-mono tracking-[0.4em] uppercase">Daily Tracking OS</p>
