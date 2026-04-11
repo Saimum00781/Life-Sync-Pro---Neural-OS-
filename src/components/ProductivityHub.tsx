@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Award, Trophy, Target, Activity, Smartphone, Sparkles, Zap, Moon, ShieldAlert, Coffee, Heart, CloudRain, Flame, Frown } from 'lucide-react';
 import { SectionHeader } from './SectionHeader';
-import { AppMode, Mood } from '../../types';
+import { AppMode, StateOfHeart } from '../../types';
 
 export const ProductivityHub: React.FC<any> = ({ data, userName, targetBaseMode, appMode, dailyMood }) => {
   const [activeSub, setActiveSub] = useState<'Daily'|'Weekly'>('Daily');
@@ -24,36 +24,39 @@ export const ProductivityHub: React.FC<any> = ({ data, userName, targetBaseMode,
 
   // Calculate Mood Correlation
   const moodStats = Object.keys(dailyMood || {}).reduce((acc: any, date: string) => {
-    const mood = dailyMood[date];
+    const state = dailyMood[date];
     const dayData = data[date];
-    if (dayData && mood) {
-      if (!acc[mood]) acc[mood] = { count: 0, totalFocus: 0, totalTasks: 0, doneTasks: 0 };
-      acc[mood].count += 1;
-      acc[mood].totalFocus += dayData.studyLogs ? dayData.studyLogs.reduce((sum: number, log: any) => sum + parseInt(log.time), 0) : 0;
-      acc[mood].totalTasks += dayData.goals ? dayData.goals.length : 0;
-      acc[mood].doneTasks += dayData.goals ? dayData.goals.filter((g: any) => g.done).length : 0;
+    if (dayData && state) {
+      let category = 'DEPLETED';
+      if (state.energy > 50 && state.mood > 50) category = 'FLOW_STATE';
+      else if (state.energy > 50 && state.mood <= 50) category = 'ANXIOUS_WIRED';
+      else if (state.energy <= 50 && state.mood > 50) category = 'CALM_RESTED';
+
+      if (!acc[category]) acc[category] = { count: 0, totalFocus: 0, totalTasks: 0, doneTasks: 0 };
+      acc[category].count += 1;
+      acc[category].totalFocus += dayData.studyLogs ? dayData.studyLogs.reduce((sum: number, log: any) => sum + parseInt(log.time), 0) : 0;
+      acc[category].totalTasks += dayData.goals ? dayData.goals.length : 0;
+      acc[category].doneTasks += dayData.goals ? dayData.goals.filter((g: any) => g.done).length : 0;
     }
     return acc;
   }, {});
 
-  const getMoodIcon = (mood: string) => {
-    switch (mood) {
-      case Mood.GRATEFUL: return <Heart size={12} className="text-emerald-400" />;
-      case Mood.ENERGETIC: return <Zap size={12} className="text-amber-400" />;
-      case Mood.SAD: return <CloudRain size={12} className="text-blue-400" />;
-      case Mood.ANGRY: return <Flame size={12} className="text-red-400" />;
-      case Mood.DEPRESSED: return <Frown size={12} className="text-slate-400" />;
+  const getMoodIcon = (category: string) => {
+    switch (category) {
+      case 'FLOW_STATE': return <Zap size={12} className="text-amber-400" />;
+      case 'ANXIOUS_WIRED': return <Flame size={12} className="text-red-400" />;
+      case 'CALM_RESTED': return <Heart size={12} className="text-emerald-400" />;
+      case 'DEPLETED': return <CloudRain size={12} className="text-blue-400" />;
       default: return null;
     }
   };
 
-  const getMoodColor = (mood: string) => {
-    switch (mood) {
-      case Mood.GRATEFUL: return "text-emerald-400";
-      case Mood.ENERGETIC: return "text-amber-400";
-      case Mood.SAD: return "text-blue-400";
-      case Mood.ANGRY: return "text-red-400";
-      case Mood.DEPRESSED: return "text-slate-400";
+  const getMoodColor = (category: string) => {
+    switch (category) {
+      case 'FLOW_STATE': return "text-amber-400";
+      case 'ANXIOUS_WIRED': return "text-red-400";
+      case 'CALM_RESTED': return "text-emerald-400";
+      case 'DEPLETED': return "text-blue-400";
       default: return "text-white";
     }
   };
@@ -86,7 +89,7 @@ export const ProductivityHub: React.FC<any> = ({ data, userName, targetBaseMode,
             <Coffee size={24} />
           </div>
           <div>
-            <h2 className="text-lg font-mono uppercase text-white tracking-tight leading-tight">Grace Mode Active</h2>
+            <h2 className="text-lg font-mono uppercase text-white tracking-tight leading-tight">Vacation Mode Active</h2>
             <p className="text-[10px] font-mono uppercase text-emerald-400 tracking-widest mt-1">Focus on healing and rest</p>
           </div>
         </div>

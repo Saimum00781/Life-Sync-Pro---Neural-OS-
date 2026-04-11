@@ -27,6 +27,12 @@ export enum AppState {
   DASHBOARD = 'dashboard'
 }
 
+export enum AppMode {
+  NORMAL = 'normal',
+  TARGET = 'target',
+  VACATION = 'vacation'
+}
+
 export enum Tab {
   DAILY = 'daily',
   STATS = 'stats',
@@ -34,18 +40,9 @@ export enum Tab {
   HABIT = 'habit'
 }
 
-export enum AppMode {
-  NORMAL = 'normal',
-  TARGET = 'target',
-  VACATION = 'vacation'
-}
-
-export enum Mood {
-  GRATEFUL = 'grateful',
-  ENERGETIC = 'energetic',
-  SAD = 'sad',
-  ANGRY = 'angry',
-  DEPRESSED = 'depressed'
+export interface StateOfHeart {
+  energy: number; // 0 to 100
+  mood: number; // 0 to 100
 }
 
 export interface UserProfile {
