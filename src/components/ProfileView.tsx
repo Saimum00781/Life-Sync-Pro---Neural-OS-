@@ -8,7 +8,7 @@ export const ProfileView = ({ name, setUserName, archetype, setArchetype, themeN
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [activeTab, setActiveTab] = useState<'identity' | 'habits' | 'preferences' | 'system'>('identity');
   
-  const { strictMode, setStrictMode, hapticFeedback, setHapticFeedback, createdAt } = useAppStore();
+  const { strictMode, setStrictMode, hapticFeedback, setHapticFeedback, createdAt, accountabilityLevel, setAccountabilityLevel } = useAppStore();
 
   const handleExport = () => {
     const data = localStorage.getItem('life-sync-pro-storage');
@@ -111,6 +111,23 @@ export const ProfileView = ({ name, setUserName, archetype, setArchetype, themeN
                 <p className="text-[8px] font-mono text-[var(--text-main)] opacity-50 mt-1 ml-1">True behavior change is identity change.</p>
               </div>
 
+              <div className="mt-4">
+                <label className="text-[10px] font-mono uppercase text-[var(--text-main)] opacity-50 block tracking-widest ml-1 mb-2">Accountability Level</label>
+                <div className="flex gap-3">
+                  <button onClick={() => setAccountabilityLevel('supportive')} className={`flex-1 p-3 rounded-xl border transition-all flex flex-col items-center gap-2 ${accountabilityLevel === 'supportive' ? 'border-emerald-500 bg-emerald-500/10 text-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.2)]' : 'border-[var(--text-main)]/10 opacity-40 grayscale'}`}>
+                     <Heart className="w-5 h-5" />
+                     <span className="text-[10px] font-mono tracking-widest">SUPPORTIVE</span>
+                  </button>
+                  <button onClick={() => setAccountabilityLevel('relentless')} className={`flex-1 p-3 rounded-xl border transition-all flex flex-col items-center gap-2 ${accountabilityLevel === 'relentless' ? 'border-rose-500 bg-rose-500/10 text-rose-400 shadow-[0_0_15px_rgba(244,63,94,0.2)]' : 'border-[var(--text-main)]/10 opacity-40 grayscale'}`}>
+                     <Zap className="w-5 h-5" />
+                     <span className="text-[10px] font-mono tracking-widest">RELENTLESS</span>
+                  </button>
+                </div>
+                <p className="text-[8px] font-mono text-[var(--text-main)] opacity-50 mt-2 ml-1 text-center">
+                  {accountabilityLevel === 'relentless' ? 'The Oracle will hold you to the highest standard. No excuses.' : 'The Oracle will guide you with supportive, analytical feedback.'}
+                </p>
+              </div>
+
               <div className="flex gap-3 mt-4">
                 <button onClick={() => setArchetype('optimizer')} className={`flex-1 p-3 rounded-xl border transition-all flex flex-col items-center gap-2 ${archetype === 'optimizer' ? 'border-[var(--accent-primary)] bg-[var(--accent-primary)]/10 text-[var(--text-main)] shadow-[0_0_15px_rgba(var(--accent-primary-rgb),0.3)]' : 'border-[var(--text-main)]/10 opacity-40 grayscale'}`}>
                    <Activity className="w-6 h-6 text-[var(--accent-primary)]" />
@@ -173,7 +190,17 @@ export const ProfileView = ({ name, setUserName, archetype, setArchetype, themeN
         {activeTab === 'preferences' && (
           <div className="space-y-5 animate-in fade-in slide-in-from-bottom-2">
             <div className="space-y-3">
-              <label className="text-[10px] font-mono uppercase text-[var(--text-main)] opacity-50 block tracking-widest ml-1">Threshold Protocol (Mins)</label>
+              <div className="flex justify-between items-center ml-1">
+                <label className="text-[10px] font-mono uppercase text-[var(--text-main)] opacity-50 tracking-widest">Threshold Protocol (Mins)</label>
+              </div>
+              
+              {/* Smart Presets */}
+              <div className="flex gap-2 mb-4">
+                <button onClick={() => setThresholds({ leisureMax: 60, productiveMin: 480, offlineMin: 60, sleepMin: 420 })} className="flex-1 py-2 bg-[var(--text-main)]/5 hover:bg-[var(--text-main)]/10 rounded-lg text-[9px] font-mono uppercase text-[var(--text-main)] transition-colors border border-[var(--text-main)]/10">Intense Focus</button>
+                <button onClick={() => setThresholds({ leisureMax: 120, productiveMin: 240, offlineMin: 120, sleepMin: 480 })} className="flex-1 py-2 bg-[var(--text-main)]/5 hover:bg-[var(--text-main)]/10 rounded-lg text-[9px] font-mono uppercase text-[var(--text-main)] transition-colors border border-[var(--text-main)]/10">Balanced</button>
+                <button onClick={() => setThresholds({ leisureMax: 240, productiveMin: 120, offlineMin: 240, sleepMin: 540 })} className="flex-1 py-2 bg-[var(--text-main)]/5 hover:bg-[var(--text-main)]/10 rounded-lg text-[9px] font-mono uppercase text-[var(--text-main)] transition-colors border border-[var(--text-main)]/10">Recovery</button>
+              </div>
+
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
                   <span className="text-[10px] text-[var(--text-main)] opacity-50 uppercase ml-2 font-mono">Max Leisure</span>
@@ -267,9 +294,11 @@ export const ProfileView = ({ name, setUserName, archetype, setArchetype, themeN
                  <div className="flex justify-between items-center">
                    <div className="flex items-center gap-2">
                      <Database size={14} className="text-[var(--text-main)] opacity-50" />
-                     <span className="text-[10px] font-mono text-[var(--text-main)] opacity-70">Connection Status</span>
+                     <span className="text-[10px] font-mono text-[var(--text-main)] opacity-70">Storage Insights</span>
                    </div>
-                   <span className="text-[10px] font-mono text-emerald-400 flex items-center gap-1"><div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"/> Local Storage (Encrypted)</span>
+                   <span className="text-[10px] font-mono text-[var(--text-main)] opacity-80">
+                     {Object.keys(useAppStore.getState().localData || {}).length} days tracked • {habits.length} active habits
+                   </span>
                  </div>
                  <div className="flex justify-between items-center">
                    <div className="flex items-center gap-2">
@@ -284,11 +313,13 @@ export const ProfileView = ({ name, setUserName, archetype, setArchetype, themeN
           </div>
         )}
         
-        <button onClick={handleSaveConfig} className="w-full py-4 bg-[var(--accent-primary)] rounded-xl text-white font-mono uppercase text-[10px] shadow-xl shadow-[var(--accent-primary)]/20 active:scale-95 transition-all mt-6">
-          Synchronize Settings
-        </button>
+        {/* Auto-Save Indicator instead of big button */}
+        <div className="flex items-center justify-center gap-2 mt-6 py-4">
+          <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+          <span className="text-[10px] font-mono uppercase text-[var(--text-main)] opacity-50 tracking-widest">Settings Auto-Synced</span>
+        </div>
 
-        <button onClick={() => setShowAbout(true)} className="w-full py-4 bg-[var(--text-main)]/5 border border-[var(--text-main)]/10 rounded-xl text-[10px] font-mono uppercase text-[var(--text-main)] opacity-60 hover:opacity-100 transition-all shadow-md mt-4">About Us</button>
+        <button onClick={() => setShowAbout(true)} className="w-full py-4 bg-[var(--text-main)]/5 border border-[var(--text-main)]/10 rounded-xl text-[10px] font-mono uppercase text-[var(--text-main)] opacity-60 hover:opacity-100 transition-all shadow-md mt-2">About Us</button>
 
         <div className="mt-8 pt-6 border-t border-rose-500/20">
           {showResetConfirm ? (
@@ -307,7 +338,7 @@ export const ProfileView = ({ name, setUserName, archetype, setArchetype, themeN
         </div>
 
         <div className="text-center mt-6">
-          <p className="text-[8px] font-mono text-[var(--text-main)] opacity-30 tracking-widest uppercase">Life Sync OS v1.0.4 (Build 8899)</p>
+          <p className="text-[8px] font-mono text-[var(--text-main)] opacity-30 tracking-widest uppercase">Life Sync OS v2.0 (Neural Edition)</p>
         </div>
       </div>
 

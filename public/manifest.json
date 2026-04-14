@@ -1,0 +1,17 @@
+{
+  "name": "Life Sync Pro",
+  "short_name": "Life Sync",
+  "description": "A neural-inspired OS designed to harmonize high-performance ambition with cognitive energy management.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#1A202C",
+  "theme_color": "#00FF7F",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

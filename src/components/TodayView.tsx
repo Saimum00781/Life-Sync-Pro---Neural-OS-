@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Sparkles, Plus, Check, Trash2, Target, Flame, Heart, Droplet, Moon, Footprints, BookOpen, Smile, Zap, Play, Square, Timer } from 'lucide-react';
+import { Sparkles, Plus, Check, Trash2, Target, Flame, Heart, Droplet, Moon, Footprints, BookOpen, Smile, Zap, Play, Square, Timer, Send, Mic, Activity, X } from 'lucide-react';
 import { SectionHeader } from './SectionHeader';
 import { useAppStore } from '../../store';
 import { generateMorningBriefing } from '../../geminiService';
@@ -13,6 +13,79 @@ export const TodayView: React.FC<any> = ({ currentDay, updateDayData, showSucces
   const [briefing, setBriefing] = useState(currentDay.briefing || "");
   const [isGeneratingBriefing, setIsGeneratingBriefing] = useState(false);
   
+  // Smart Command State
+  const [smartCommand, setSmartCommand] = useState("");
+  const [isParsingCommand, setIsParsingCommand] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+
+  const startListening = () => {
+    if (!('webkitSpeechRecognition' in window)) {
+      if (showSuccessToast) showSuccessToast("VOICE NOT SUPPORTED");
+      return;
+    }
+    const SpeechRecognition = (window as any).webkitSpeechRecognition;
+    const recognition = new SpeechRecognition();
+    recognition.continuous = false;
+    recognition.interimResults = false;
+
+    recognition.onstart = () => setIsListening(true);
+    recognition.onresult = (event: any) => {
+      const transcript = event.results[0][0].transcript;
+      setSmartCommand(prev => prev ? `${prev} ${transcript}` : transcript);
+    };
+    recognition.onerror = () => setIsListening(false);
+    recognition.onend = () => setIsListening(false);
+    
+    recognition.start();
+  };
+
+  const handleSmartCommand = async () => {
+    if (!smartCommand.trim() || isParsingCommand) return;
+    setIsParsingCommand(true);
+    try {
+      const { parseNaturalLanguageCommand } = await import('../../geminiService');
+      const updates = await parseNaturalLanguageCommand(smartCommand, currentDay, habits);
+      if (updates) {
+        const newDayData = { ...currentDay };
+        if (updates.addedProductiveMins) newDayData.productiveDeviceTime = (newDayData.productiveDeviceTime || 0) + updates.addedProductiveMins;
+        if (updates.addedLeisureMins) newDayData.leisureDeviceTime = (newDayData.leisureDeviceTime || 0) + updates.addedLeisureMins;
+        if (updates.addedWater) newDayData.waterIntake = (newDayData.waterIntake || 0) + updates.addedWater;
+        if (updates.addedSleepMins) newDayData.sleepTime = (newDayData.sleepTime || 0) + updates.addedSleepMins;
+        if (updates.addedSteps) newDayData.steps = (newDayData.steps || 0) + updates.addedSteps;
+        
+        if (updates.completedHabits && updates.completedHabits.length > 0) {
+          const currentHabits = newDayData.habits || [];
+          newDayData.habits = Array.from(new Set([...currentHabits, ...updates.completedHabits]));
+        }
+
+        if (updates.newGoals && updates.newGoals.length > 0) {
+          const newGoalsList = updates.newGoals.map((text: string) => ({
+            id: Date.now().toString() + Math.random().toString(),
+            text,
+            priority: 'standard',
+            done: false,
+            date: currentDayStr
+          }));
+          newDayData.goals = [...(newDayData.goals || []), ...newGoalsList];
+        }
+
+        if (updates.completedGoalIds && updates.completedGoalIds.length > 0) {
+          newDayData.goals = (newDayData.goals || []).map((g: any) => 
+            updates.completedGoalIds.includes(g.id) ? { ...g, done: true } : g
+          );
+        }
+
+        updateDayData(currentDayStr, newDayData);
+        setSmartCommand("");
+        if (showSuccessToast) showSuccessToast("TELEMETRY LOGGED");
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsParsingCommand(false);
+    }
+  };
+
   // Focus Timer State
   const [timerActive, setTimerActive] = useState(false);
   const [timeLeft, setTimeLeft] = useState(25 * 60); // 25 mins default
@@ -27,9 +100,18 @@ export const TodayView: React.FC<any> = ({ currentDay, updateDayData, showSucces
       }, 1000);
     } else if (timerActive && timeLeft === 0) {
       setTimerActive(false);
-      // Add to productive time
+      // Interconnected Tools: Add to productive time AND check off matching habits
       const currentProductive = currentDay.productiveDeviceTime || 0;
-      updateDayData(currentDayStr, { productiveDeviceTime: currentProductive + 25 });
+      const newDayData: any = { productiveDeviceTime: currentProductive + 25 };
+      
+      // Auto-check habit if segment matches
+      const currentHabits = currentDay.habits || [];
+      const matchingHabit = habits.find((h: string) => h.toLowerCase() === selectedSegment.toLowerCase());
+      if (matchingHabit && !currentHabits.includes(matchingHabit)) {
+        newDayData.habits = [...currentHabits, matchingHabit];
+      }
+
+      updateDayData(currentDayStr, newDayData);
       if (showSuccessToast) showSuccessToast("FOCUS SESSION COMPLETE");
       setTimeLeft(25 * 60);
     }
@@ -56,9 +138,10 @@ export const TodayView: React.FC<any> = ({ currentDay, updateDayData, showSucces
         const localData = useAppStore.getState().localData;
         const yesterdayData = localData[yesterdayStr] || {};
         const coreIdentity = useAppStore.getState().coreIdentity;
+        const accountabilityLevel = useAppStore.getState().accountabilityLevel;
         
         try {
-          const newBriefing = await generateMorningBriefing(yesterdayData, coreIdentity);
+          const newBriefing = await generateMorningBriefing(yesterdayData, coreIdentity, accountabilityLevel);
           setBriefing(newBriefing);
           updateDayData(currentDayStr, { briefing: newBriefing });
         } catch (e) {
@@ -101,7 +184,7 @@ export const TodayView: React.FC<any> = ({ currentDay, updateDayData, showSucces
     if (showSuccessToast && !isDone) showSuccessToast("HABIT COMPLETED");
   };
 
-  const saveVitalsAndJournal = () => {
+  const saveVitalsAndJournal = async () => {
     updateDayData(currentDayStr, { 
       waterIntake: water, 
       sleepTime: sleep, 
@@ -109,14 +192,63 @@ export const TodayView: React.FC<any> = ({ currentDay, updateDayData, showSucces
       journal: journalText
     });
     if (showSuccessToast) showSuccessToast("LOG SAVED");
+    
+    // Trigger Evening Review
+    setShowEveningReview(true);
+    setIsGeneratingReview(true);
+    try {
+      const { generateEveningReview } = await import('../../geminiService');
+      const coreIdentity = useAppStore.getState().coreIdentity;
+      const accountabilityLevel = useAppStore.getState().accountabilityLevel;
+      const review = await generateEveningReview(currentDay, coreIdentity, accountabilityLevel);
+      setEveningReviewText(review);
+    } catch (e) {
+      console.error(e);
+      setEveningReviewText("Evening review complete. Rest well.");
+    } finally {
+      setIsGeneratingReview(false);
+    }
   };
+
+  const [showEveningReview, setShowEveningReview] = useState(false);
+  const [isGeneratingReview, setIsGeneratingReview] = useState(false);
+  const [eveningReviewText, setEveningReviewText] = useState("");
 
   const doneCount = data.filter((g: any) => g.done).length;
   const totalCount = data.length;
 
+  // Calculate Sync Score
+  const activeHabitsCount = habits.length;
+  const completedHabitsCount = (currentDay.habits || []).length;
+  const habitScore = activeHabitsCount > 0 ? (completedHabitsCount / activeHabitsCount) * 100 : 0;
+  const sleepScore = Math.min((currentDay.sleepTime || 0) / 480, 1) * 100;
+  const waterScore = Math.min((currentDay.waterIntake || 0) / 2000, 1) * 100;
+  const moodVal = currentMood?.mood || 50;
+  const energyVal = currentMood?.energy || 50;
+  const syncScore = Math.round((habitScore + sleepScore + waterScore + moodVal + energyVal) / 5) || 0;
+
   return (
     <div className="space-y-10 animate-in w-full max-w-md mx-auto pb-12">
       
+      {/* SYNC SCORE HEADER */}
+      <div className="flex items-center justify-between bg-[var(--text-main)]/5 p-4 rounded-2xl border border-[var(--text-main)]/10">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-full bg-[var(--accent-primary)]/20 flex items-center justify-center border border-[var(--accent-primary)]/30">
+            <Activity size={18} className="text-[var(--accent-primary)]" />
+          </div>
+          <div>
+            <h2 className="text-[10px] font-mono uppercase tracking-widest text-[var(--text-main)] opacity-60">Daily Sync Score</h2>
+            <div className="flex items-baseline gap-1">
+              <span className="text-2xl font-mono tracking-tighter text-[var(--text-main)]">{syncScore}</span>
+              <span className="text-[10px] font-mono text-[var(--text-main)] opacity-40">/100</span>
+            </div>
+          </div>
+        </div>
+        <div className="text-right">
+          <p className="text-[9px] font-mono uppercase tracking-widest text-emerald-400">{syncScore >= 80 ? 'Optimal' : syncScore >= 50 ? 'Nominal' : 'Sub-Optimal'}</p>
+        </div>
+      </div>
+
       {/* ORACLE BRIEFING */}
       <section className="bg-[var(--accent-primary)]/10 border border-[var(--accent-primary)]/20 p-5 rounded-2xl relative overflow-hidden shadow-[0_0_20px_rgba(var(--accent-primary-rgb),0.15)]">
         <div className="absolute top-0 left-0 w-1 h-full bg-[var(--accent-primary)]" />
@@ -132,6 +264,31 @@ export const TodayView: React.FC<any> = ({ currentDay, updateDayData, showSucces
         ) : (
           <p className="text-sm font-mono text-[var(--text-main)] leading-relaxed opacity-90">{briefing || "Good morning, Operator. Systems are online and ready for optimization."}</p>
         )}
+      </section>
+
+      {/* SMART COMMAND (Frictionless Input) */}
+      <section className="space-y-2">
+        <div className="flex gap-2 relative">
+          <div className="absolute left-3 top-1/2 -translate-y-1/2 text-emerald-400/50">
+            <Zap size={14} />
+          </div>
+          <input 
+            value={smartCommand} 
+            onChange={e => setSmartCommand(e.target.value)} 
+            onKeyDown={e => e.key === 'Enter' && handleSmartCommand()} 
+            placeholder="Log anything (e.g., 'Drank 2 waters and ran 5k')..." 
+            className="flex-1 bg-emerald-500/5 p-3.5 pl-9 pr-10 rounded-[1.25rem] text-xs font-mono outline-none border border-emerald-500/20 text-[var(--text-main)] placeholder:text-[var(--text-main)] placeholder:opacity-40 focus:border-emerald-500/50 focus:bg-emerald-500/10 transition-all shadow-inner" 
+          />
+          <button 
+            onClick={startListening} 
+            className={`absolute right-[3.5rem] top-1/2 -translate-y-1/2 p-1.5 rounded-lg transition-colors ${isListening ? 'bg-rose-500/20 text-rose-400 animate-pulse' : 'text-[var(--text-main)] opacity-40 hover:opacity-100'}`}
+          >
+            <Mic size={14} />
+          </button>
+          <button onClick={handleSmartCommand} disabled={isParsingCommand || !smartCommand.trim()} className="p-3.5 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-[1.25rem] active:scale-95 transition-all shadow-lg shadow-emerald-500/10 disabled:opacity-50 hover:bg-emerald-500/30">
+            {isParsingCommand ? <div className="w-4 h-4 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin" /> : <Send size={14}/>}
+          </button>
+        </div>
       </section>
 
       {/* 2. DAILY GOALS */}
@@ -168,7 +325,7 @@ export const TodayView: React.FC<any> = ({ currentDay, updateDayData, showSucces
 
       {/* FOCUS TIMER */}
       <section className="space-y-4">
-        <SectionHeader title="Deep Work Protocol" icon={Timer} colorClass="text-indigo-400" />
+        <SectionHeader title="Deep Work Protocol" icon={Timer} colorClass="text-indigo-400" infoText="Focus Chamber: A dedicated space for uninterrupted deep work. Select your neural segment, engage the timer, and eliminate all distractions." />
         <div className="bg-[var(--text-main)]/5 p-6 rounded-[1.5rem] border border-[var(--text-main)]/10 flex flex-col items-center gap-4">
           <select 
             value={selectedSegment} 
@@ -196,6 +353,7 @@ export const TodayView: React.FC<any> = ({ currentDay, updateDayData, showSucces
               <Trash2 size={14} />
             </button>
           </div>
+          <p className="text-[8px] font-mono text-[var(--text-main)] opacity-30 tracking-widest uppercase mt-2 text-center w-full">Pro Tip: Use the stopwatch mode for open-ended brainstorming.</p>
         </div>
       </section>
 
@@ -222,7 +380,7 @@ export const TodayView: React.FC<any> = ({ currentDay, updateDayData, showSucces
 
       {/* 3. HABITS */}
       <section className="space-y-4">
-        <SectionHeader title="Habit Protocols" icon={Flame} colorClass="text-orange-500" />
+        <SectionHeader title="Habit Protocols" icon={Flame} colorClass="text-orange-500" infoText="Atomic Habits: Small, consistent actions that compound over time. Check off your daily protocols to build unbreakable streaks." />
         <div className="grid grid-cols-2 gap-2">
           {habits.map((h: any) => {
             const habit = typeof h === 'string' ? h : (h.text || '');
@@ -267,6 +425,7 @@ export const TodayView: React.FC<any> = ({ currentDay, updateDayData, showSucces
             );
           })}
         </div>
+        <p className="text-[8px] font-mono text-[var(--text-main)] opacity-30 tracking-widest uppercase mt-2 text-center w-full">Pro Tip: Stack new habits onto existing ones for higher success rates.</p>
       </section>
 
       {/* 4. VITALS */}
@@ -314,8 +473,48 @@ export const TodayView: React.FC<any> = ({ currentDay, updateDayData, showSucces
         onClick={saveVitalsAndJournal}
         className="w-full py-4 bg-[var(--accent-primary)] text-white rounded-xl font-mono uppercase tracking-widest hover:bg-[var(--accent-primary)]/80 transition-all shadow-lg active:scale-95 flex items-center justify-center gap-2"
       >
-        <Sparkles size={16} /> Save Daily Log
+        <Sparkles size={16} /> Save Daily Log & Review
       </button>
+
+      {/* Evening Review Modal */}
+      {showEveningReview && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[200] flex items-center justify-center p-6 animate-in">
+          <div className="bg-[var(--card-bg)] border border-[var(--text-main)]/10 rounded-[2rem] p-6 w-full max-w-sm shadow-2xl relative overflow-hidden">
+            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500" />
+            <div className="flex justify-between items-center mb-6">
+              <div className="flex items-center gap-2 text-indigo-400">
+                <Moon size={18} />
+                <h3 className="text-sm font-mono uppercase tracking-widest">Evening Review</h3>
+              </div>
+              <button onClick={() => setShowEveningReview(false)} className="text-[var(--text-main)] opacity-50 hover:opacity-100 transition-opacity">
+                <X size={16} />
+              </button>
+            </div>
+            
+            <div className="bg-[var(--text-main)]/5 p-5 rounded-2xl border border-[var(--text-main)]/10 min-h-[120px] flex items-center justify-center">
+              {isGeneratingReview ? (
+                <div className="flex flex-col items-center gap-3 text-[var(--text-main)] opacity-50">
+                  <div className="w-5 h-5 border-2 border-[var(--text-main)] border-t-transparent rounded-full animate-spin" />
+                  <p className="text-[10px] font-mono uppercase tracking-widest">Analyzing daily telemetry...</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {eveningReviewText.split('\n').map((line, i) => (
+                    <p key={i} className="text-xs font-mono text-[var(--text-main)] leading-relaxed opacity-90">{line}</p>
+                  ))}
+                </div>
+              )}
+            </div>
+            
+            <button 
+              onClick={() => setShowEveningReview(false)} 
+              className="w-full mt-6 py-3 bg-[var(--text-main)]/10 text-[var(--text-main)] rounded-xl font-mono uppercase text-[10px] tracking-widest hover:bg-[var(--text-main)]/20 transition-all"
+            >
+              Acknowledge
+            </button>
+          </div>
+        </div>
+      )}
 
     </div>
   );

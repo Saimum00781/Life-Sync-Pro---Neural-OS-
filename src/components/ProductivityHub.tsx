@@ -1,10 +1,38 @@
-import React, { useState } from 'react';
-import { Award, Trophy, Target, Activity, Smartphone, Sparkles, Zap, Moon, ShieldAlert, Coffee, Heart, CloudRain, Flame, Frown } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Award, Trophy, Target, Activity, Smartphone, Sparkles, Zap, Moon, ShieldAlert, Coffee, Heart, CloudRain, Flame, Frown, BrainCircuit } from 'lucide-react';
 import { SectionHeader } from './SectionHeader';
 import { AppMode, StateOfHeart } from '../../types';
+import { generatePatternAnalysis } from '../../geminiService';
 
 export const ProductivityHub: React.FC<any> = ({ data, userName, targetBaseMode, appMode, dailyMood }) => {
   const [activeSub, setActiveSub] = useState<'Daily'|'Weekly'>('Daily');
+  const [patternAnalysis, setPatternAnalysis] = useState<string>("");
+  const [isGeneratingPattern, setIsGeneratingPattern] = useState(false);
+
+  useEffect(() => {
+    const fetchPatternAnalysis = async () => {
+      if (!patternAnalysis && !isGeneratingPattern && Object.keys(data).length > 0) {
+        setIsGeneratingPattern(true);
+        try {
+          // Get last 14 days of data
+          const sortedDates = Object.keys(data).sort().reverse().slice(0, 14);
+          const historicalData = sortedDates.reduce((acc: any, date) => {
+            acc[date] = data[date];
+            return acc;
+          }, {});
+          
+          const analysis = await generatePatternAnalysis(historicalData);
+          setPatternAnalysis(analysis);
+        } catch (e) {
+          console.error(e);
+        } finally {
+          setIsGeneratingPattern(false);
+        }
+      }
+    };
+    fetchPatternAnalysis();
+  }, [data]);
+
   const todayStr = new Date().toISOString().split('T')[0];
   const todayData = data[todayStr] || { goals: [], studyLogs: [], deviceTime: '0', habits: [], leisureDeviceTime: 0, productiveDeviceTime: 0, offlineTime: 0, sleepTime: 0, waterIntake: 0 };
   
@@ -236,6 +264,32 @@ export const ProductivityHub: React.FC<any> = ({ data, userName, targetBaseMode,
           </div>
         </div>
       )}
+
+      {/* Predictive Pattern Analysis */}
+      <div className="mt-6 bg-indigo-950/30 p-5 rounded-[1.5rem] border border-indigo-500/20 shadow-xl relative overflow-hidden">
+        <div className="absolute top-0 left-0 w-1 h-full bg-indigo-500" />
+        <div className="flex items-center gap-2 mb-4 text-indigo-400">
+          <BrainCircuit size={14} />
+          <h4 className="text-[10px] font-mono uppercase tracking-widest">Neural Pattern Analysis</h4>
+        </div>
+        {isGeneratingPattern ? (
+          <div className="flex items-center gap-2 text-indigo-400/50">
+            <div className="w-3 h-3 border-2 border-indigo-400/50 border-t-transparent rounded-full animate-spin" />
+            <p className="text-[10px] font-mono uppercase tracking-widest">Analyzing historical telemetry...</p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {patternAnalysis.split('\n').map((line, i) => (
+              line.trim() && (
+                <div key={i} className="flex items-start gap-2">
+                  <span className="text-indigo-400 mt-0.5">•</span>
+                  <p className="text-xs font-mono text-indigo-100/80 leading-relaxed">{line.replace('•', '').trim()}</p>
+                </div>
+              )
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 };

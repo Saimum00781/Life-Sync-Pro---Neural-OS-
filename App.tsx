@@ -293,11 +293,11 @@ const App: React.FC = () => {
               weatherTheme={weatherTheme}
               setWeatherTheme={setWeatherTheme}
               thresholds={thresholds}
-              setThresholds={(t: any) => { setThresholds(t); localStorage.setItem('lsp_thresholds', JSON.stringify(t)); }}
+              setThresholds={setThresholds}
               habits={habits}
-              setHabits={(h: any) => { setHabits(h); localStorage.setItem('lsp_habits', JSON.stringify(h)); }}
+              setHabits={setHabits}
               segments={segments}
-              setSegments={(s: any) => { setSegments(s); localStorage.setItem('lsp_segments', JSON.stringify(s)); }}
+              setSegments={setSegments}
               selectedDate={selectedCalendarDate}
               setSelectedDate={setSelectedCalendarDate}
               customPrompt={customPrompt}

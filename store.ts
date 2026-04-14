@@ -59,6 +59,7 @@ interface AppState {
   weatherTheme: string;
   strictMode: boolean;
   hapticFeedback: boolean;
+  accountabilityLevel: 'supportive' | 'relentless';
   createdAt: string;
   
   // Settings
@@ -102,6 +103,7 @@ interface AppState {
   setWeatherTheme: (theme: string) => void;
   setStrictMode: (val: boolean) => void;
   setHapticFeedback: (val: boolean) => void;
+  setAccountabilityLevel: (level: 'supportive' | 'relentless') => void;
 }
 
 export const useAppStore = create<AppState>()(
@@ -117,6 +119,7 @@ export const useAppStore = create<AppState>()(
       weatherTheme: 'Rainy',
       strictMode: false,
       hapticFeedback: true,
+      accountabilityLevel: 'supportive',
       createdAt: new Date().toISOString(),
       
       thresholds: { leisureMax: 120, productiveMin: 240, offlineMin: 120, sleepMin: 480 },
@@ -165,6 +168,7 @@ export const useAppStore = create<AppState>()(
       setWeatherTheme: (weatherTheme) => set({ weatherTheme }),
       setStrictMode: (strictMode) => set({ strictMode }),
       setHapticFeedback: (hapticFeedback) => set({ hapticFeedback }),
+      setAccountabilityLevel: (accountabilityLevel) => set({ accountabilityLevel }),
       toggleHabitCompletion: (date, habitName) => set((state) => {
         const currentCompletions = (state.habitCompletions && state.habitCompletions[date]) || [];
         const isCompleted = currentCompletions.includes(habitName);
